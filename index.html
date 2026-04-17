@@ -1421,19 +1421,14 @@ function recalcBudget(key, budget){
 // ─── MAX BILLING ───
 function getBillingCycle(){
   const today = new Date();
-  const day = today.getDate();
   const month = today.getMonth();
   const year = today.getFullYear();
-  let sY, sM, eY, eM;
-  if(day >= 15){
-    sY = year; sM = month;
-    const eDate = new Date(year, month+1, 14);
-    eY = eDate.getFullYear(); eM = eDate.getMonth();
-  } else {
-    const sDate = new Date(year, month-1, 15);
-    sY = sDate.getFullYear(); sM = sDate.getMonth();
-    eY = year; eM = month;
-  }
+  // "חיוב קרוב" = the period being charged at the start of next month:
+  // always 15th of previous month → 14th of current month
+  const sDate = new Date(year, month - 1, 15);
+  const eDate = new Date(year, month, 14);
+  const sY = sDate.getFullYear(), sM = sDate.getMonth();
+  const eY = eDate.getFullYear(), eM = eDate.getMonth();
   const pad = n => String(n).padStart(2,'0');
   const startStr = `${sY}-${pad(sM+1)}-15`;
   const endStr   = `${eY}-${pad(eM+1)}-14`;
@@ -1475,9 +1470,11 @@ async function fetchMaxBilling(){
     const dateStr = parseTxDate(r.c[0]?.v);
     if(!dateStr || dateStr < startStr || dateStr > endStr) continue;
     const amount = parseFloat(r.c[2]?.v) || 0;
+    if(amount >= 0) continue; // skip refunds/credits, only count charges
+    const charge = Math.abs(amount);
     const card   = String(r.c[3]?.v || '');
-    if(card.includes('9716'))      personal += amount;
-    else if(card.includes('0710')) business += amount;
+    if(card.includes('9716'))      personal += charge;
+    else if(card.includes('0710')) business += charge;
   }
 
   if(persEl) persEl.textContent = fmtMoney(personal);
