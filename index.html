@@ -1475,9 +1475,9 @@ async function fetchMaxBilling(){
   const personal = parseFloat(settings['upcoming_personal']) || 0;
   const business = parseFloat(settings['upcoming_business']) || 0;
 
-  if(persEl) persEl.textContent = fmtMoney(personal);
-  if(busEl)  busEl.textContent  = fmtMoney(business);
-  if(totEl)  totEl.textContent  = fmtMoney(personal + business);
+  if(persEl) persEl.textContent = fmtMoney(Math.abs(personal));
+  if(busEl)  busEl.textContent  = fmtMoney(Math.abs(business));
+  if(totEl)  totEl.textContent  = fmtMoney(Math.abs(personal + business));
   if(badgeEl) badgeEl.textContent = 'MAX · הגדרות';
 }
 
