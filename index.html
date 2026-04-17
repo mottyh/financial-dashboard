@@ -661,49 +661,6 @@ body{
 .cf-input:focus{border-color:var(--p);color:var(--txt);}
 .cf-input::placeholder{color:var(--mu);}
 
-/* ─── UNCLASSIFIED TABLE ─── */
-#unclassified-section{margin-bottom:12px;}
-.uncl-row{
-  padding:10px 14px;
-  border-bottom:1px solid rgba(37,42,66,.4);
-  display:flex;
-  flex-direction:column;
-  gap:7px;
-}
-.uncl-row:last-child{border-bottom:none;}
-.uncl-info{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;}
-.uncl-date{font-size:10px;color:var(--mu);flex-shrink:0;}
-.uncl-merchant{font-size:12px;font-weight:600;color:var(--txt);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.uncl-meta{font-size:10px;color:var(--mu2);flex-shrink:0;}
-.uncl-actions{display:flex;gap:7px;align-items:center;}
-.uncl-select{
-  flex:1;min-width:0;
-  background:var(--s3);
-  border:1px solid var(--bd2);
-  border-radius:7px;
-  color:var(--txt);
-  font-family:'Heebo',sans-serif;
-  font-size:11px;
-  padding:5px 7px;
-  outline:none;
-  cursor:pointer;
-}
-.uncl-select:focus{border-color:var(--p);}
-.uncl-save{
-  flex-shrink:0;
-  background:var(--p);
-  border:none;
-  border-radius:7px;
-  color:#fff;
-  font-family:'Heebo',sans-serif;
-  font-size:11px;
-  font-weight:700;
-  padding:5px 12px;
-  cursor:pointer;
-  transition:opacity .15s;
-}
-.uncl-save:disabled{opacity:.45;cursor:default;}
-
 /* ─── LOAN ITEM ─── */
 .loan-item{
   padding:11px 14px;
@@ -796,38 +753,86 @@ body{
     <!-- לבנה 3: ניצול תקציב -->
     <div class="section-header">
       <div class="section-title">ניצול תקציב</div>
-      <div class="update-badge" id="budget-badge">טוען...</div>
+      <div class="update-badge">חודשי · ידני זמני</div>
     </div>
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
-      <div id="budget-bars-container">
-        <div style="padding:20px;text-align:center;color:var(--mu);font-size:12px;">טוען קטגוריות...</div>
-      </div>
-    </div>
 
-    <!-- לסיווג -->
-    <div id="unclassified-section" style="display:none;">
-      <div class="section-header">
-        <div class="section-title">לסיווג ידני</div>
-        <div class="update-badge" id="uncl-count-badge"></div>
+      <!-- מזון -->
+      <div class="budget-row">
+        <div class="budget-info">
+          <div class="budget-name">מזון</div>
+          <div class="budget-amounts"><span id="bgt-food-spent">₪0</span> מתוך ₪1,600</div>
+        </div>
+        <input class="pl-input" type="number" id="bgt-food-input" value="0" min="0" oninput="recalcBudget('food',1600)">
+        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-food-bar" style="width:0%;background:var(--g);"></div></div>
       </div>
-      <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
-        <div id="unclassified-rows"></div>
+
+      <!-- בילויים -->
+      <div class="budget-row">
+        <div class="budget-info">
+          <div class="budget-name">בילויים</div>
+          <div class="budget-amounts"><span id="bgt-fun-spent">₪0</span> מתוך ₪400</div>
+        </div>
+        <input class="pl-input" type="number" id="bgt-fun-input" value="0" min="0" oninput="recalcBudget('fun',400)">
+        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-fun-bar" style="width:0%;background:var(--g);"></div></div>
       </div>
+
+      <!-- בריאות -->
+      <div class="budget-row">
+        <div class="budget-info">
+          <div class="budget-name">בריאות / רפואה</div>
+          <div class="budget-amounts"><span id="bgt-health-spent">₪0</span> מתוך ₪100</div>
+        </div>
+        <input class="pl-input" type="number" id="bgt-health-input" value="0" min="0" oninput="recalcBudget('health',100)">
+        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-health-bar" style="width:0%;background:var(--g);"></div></div>
+      </div>
+
+      <!-- נסיעות -->
+      <div class="budget-row">
+        <div class="budget-info">
+          <div class="budget-name">נסיעות</div>
+          <div class="budget-amounts"><span id="bgt-travel-spent">₪0</span> מתוך ₪176</div>
+        </div>
+        <input class="pl-input" type="number" id="bgt-travel-input" value="0" min="0" oninput="recalcBudget('travel',176)">
+        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-travel-bar" style="width:0%;background:var(--g);"></div></div>
+      </div>
+
+      <!-- ביגוד/מחייה -->
+      <div class="budget-row">
+        <div class="budget-info">
+          <div class="budget-name">ביגוד / מחייה</div>
+          <div class="budget-amounts"><span id="bgt-clothing-spent">₪0</span> מתוך ₪150</div>
+        </div>
+        <input class="pl-input" type="number" id="bgt-clothing-input" value="0" min="0" oninput="recalcBudget('clothing',150)">
+        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-clothing-bar" style="width:0%;background:var(--g);"></div></div>
+      </div>
+
+      <!-- שונות -->
+      <div class="budget-row" style="border-bottom:none;">
+        <div class="budget-info">
+          <div class="budget-name">שונות</div>
+          <div class="budget-amounts"><span id="bgt-misc-spent">₪0</span> מתוך ₪400</div>
+        </div>
+        <input class="pl-input" type="number" id="bgt-misc-input" value="0" min="0" oninput="recalcBudget('misc',400)">
+        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-misc-bar" style="width:0%;background:var(--g);"></div></div>
+      </div>
+
     </div>
 
     <!-- לבנה 4: חיוב כרטיסי אשראי -->
     <div class="section-header">
       <div class="section-title">חיוב כרטיסי אשראי קרוב</div>
-      <div class="update-badge">ידני זמני</div>
+      <div class="update-badge" id="cc-badge">טוען...</div>
     </div>
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
+      <div style="padding:8px 14px 2px;font-size:10px;color:var(--mu);" id="cc-cycle-label">מחשב מחזור...</div>
       <div class="pl-row">
         <div class="pl-name">אישי 9716</div>
-        <input class="pl-input" type="number" id="cc-personal" value="0" min="0" oninput="recalcCC()">
+        <div class="pl-amount" id="cc-personal-val" style="font-size:14px;">טוען...</div>
       </div>
       <div class="pl-row">
         <div class="pl-name">עסקי 0710</div>
-        <input class="pl-input" type="number" id="cc-business" value="0" min="0" oninput="recalcCC()">
+        <div class="pl-amount" id="cc-business-val" style="font-size:14px;">טוען...</div>
       </div>
       <div class="pl-row total" style="border-top:2px solid var(--bd2);">
         <div>סה"כ חיוב</div>
@@ -1413,12 +1418,72 @@ function recalcBudget(key, budget){
   bar.style.background = pct >= 100 ? 'var(--r)' : pct >= 80 ? 'var(--y)' : 'var(--g)';
 }
 
-// ─── CREDIT CARDS ───
-function recalcCC(){
-  const p = getNum('cc-personal');
-  const b = getNum('cc-business');
-  const total = p + b;
-  document.getElementById('cc-total').textContent = '₪' + Math.round(total).toLocaleString('he-IL');
+// ─── MAX BILLING ───
+function getBillingCycle(){
+  const today = new Date();
+  const day = today.getDate();
+  const month = today.getMonth();
+  const year = today.getFullYear();
+  let sY, sM, eY, eM;
+  if(day >= 15){
+    sY = year; sM = month;
+    const eDate = new Date(year, month+1, 14);
+    eY = eDate.getFullYear(); eM = eDate.getMonth();
+  } else {
+    const sDate = new Date(year, month-1, 15);
+    sY = sDate.getFullYear(); sM = sDate.getMonth();
+    eY = year; eM = month;
+  }
+  const pad = n => String(n).padStart(2,'0');
+  const startStr = `${sY}-${pad(sM+1)}-15`;
+  const endStr   = `${eY}-${pad(eM+1)}-14`;
+  const heM = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const label = `מחזור: 15 ${heM[sM]} – 14 ${heM[eM]}`;
+  return { startStr, endStr, label };
+}
+
+function parseTxDate(v){
+  if(!v) return null;
+  const s = String(v);
+  if(s.startsWith('Date(')){
+    const parts = s.slice(5,-1).split(',').map(Number);
+    return `${parts[0]}-${String(parts[1]+1).padStart(2,'0')}-${String(parts[2]).padStart(2,'0')}`;
+  }
+  return s.substring(0,10);
+}
+
+async function fetchMaxBilling(){
+  const { startStr, endStr, label } = getBillingCycle();
+  const cycleEl = document.getElementById('cc-cycle-label');
+  const badgeEl = document.getElementById('cc-badge');
+  const persEl  = document.getElementById('cc-personal-val');
+  const busEl   = document.getElementById('cc-business-val');
+  const totEl   = document.getElementById('cc-total');
+  if(cycleEl) cycleEl.textContent = label;
+
+  const rows = await fetchSheetRows('עסקאות');
+  if(!rows){
+    [persEl, busEl].forEach(el => { if(el) el.textContent = 'שגיאה'; });
+    if(badgeEl) badgeEl.textContent = 'שגיאה';
+    return;
+  }
+
+  let personal = 0, business = 0;
+  for(let i=1; i<rows.length; i++){
+    const r = rows[i];
+    if(!r.c) continue;
+    const dateStr = parseTxDate(r.c[0]?.v);
+    if(!dateStr || dateStr < startStr || dateStr > endStr) continue;
+    const amount = parseFloat(r.c[2]?.v) || 0;
+    const card   = String(r.c[3]?.v || '');
+    if(card.includes('9716'))      personal += amount;
+    else if(card.includes('0710')) business += amount;
+  }
+
+  if(persEl) persEl.textContent = fmtMoney(personal);
+  if(busEl)  busEl.textContent  = fmtMoney(business);
+  if(totEl)  totEl.textContent  = fmtMoney(personal + business);
+  if(badgeEl) badgeEl.textContent = 'MAX · עסקאות';
 }
 
 // ─── SYNC NET FROM P&L ───
@@ -1807,271 +1872,9 @@ function changeWorkMonth(d){
   }
 }
 
-// ─── BUDGET FROM SHEETS ───
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyU0FHVfTt585JZzJrkb7QP_GIyNC_A_XvzJYRiItRSZWjXjtx5bkbGuVq5BuIxiWP3/exec';
-
-// Cache: [{ category, label, budget }]
-let budgetCategoriesData = [];
-
-// Convert category name to a safe DOM id fragment
-function catKey(name){ return 'bcat__' + name.replace(/[^א-תa-zA-Z0-9]/g,'_'); }
-
-// ── Render bar rows from categories ──────────────────────────────────────
-function renderBudgetBars(cats){
-  const container = document.getElementById('budget-bars-container');
-  if(!cats.length){
-    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu);font-size:12px;">אין קטגוריות</div>';
-    return;
-  }
-  let html = '';
-  cats.forEach((cat, i) => {
-    const k = catKey(cat.category);
-    const last = i === cats.length - 1;
-    const budgetFmt = '₪' + Math.round(cat.budget).toLocaleString('he-IL');
-    html += `
-    <div class="budget-row"${last?' style="border-bottom:none;"':''}>
-      <div class="budget-info">
-        <div class="budget-name">${cat.label||cat.category}</div>
-        <div class="budget-amounts"><span id="${k}-spent">₪0</span> מתוך ${budgetFmt}</div>
-      </div>
-      <input type="hidden" id="${k}-input" value="0">
-      <div class="budget-bar-wrap"><div class="budget-bar" id="${k}-bar" style="width:0%;background:var(--g);"></div></div>
-    </div>`;
-  });
-  container.innerHTML = html;
-}
-
-// ── Update a single bar by category name ─────────────────────────────────
-function recalcBudgetCat(catName){
-  const cat = budgetCategoriesData.find(c => c.category === catName);
-  if(!cat) return;
-  const k = catKey(catName);
-  const spent = parseFloat(document.getElementById(k+'-input')?.value)||0;
-  const spentEl = document.getElementById(k+'-spent');
-  if(spentEl) spentEl.textContent = '₪' + Math.round(spent).toLocaleString('he-IL');
-  const pct = cat.budget > 0 ? Math.min(Math.round((spent/cat.budget)*100), 100) : 0;
-  const bar = document.getElementById(k+'-bar');
-  if(bar){
-    bar.style.width = pct+'%';
-    bar.style.background = pct>=100 ? 'var(--r)' : pct>=80 ? 'var(--y)' : 'var(--g)';
-  }
-}
-
-// ── Fallback hardcoded categories (used if API fails) ────────────────────
-const FALLBACK_CATEGORIES = [
-  { category:'מזון וצריכה',      budget:1600 },
-  { category:'בילויים',          budget:400  },
-  { category:'בריאות',           budget:100  },
-  { category:'נסיעות ותיירות',   budget:176  },
-  { category:'מחייה',            budget:150  },
-  { category:'שונות',            budget:400  },
-];
-
-// ── Fetch categories from Apps Script, then fetch transactions ────────────
-async function fetchBudgetCategories(){
-  const badge = document.getElementById('budget-badge');
-  try {
-    const res  = await fetch(APPS_SCRIPT_URL + '?action=getCategories');
-    const data = await res.json();
-    // Apps Script returns { success, data: [...] }
-    const cats = Array.isArray(data) ? data : (data.data || data.categories || []);
-    budgetCategoriesData = cats.length ? cats : FALLBACK_CATEGORIES;
-    if(!cats.length) console.warn('getCategories returned empty — using fallback');
-    renderBudgetBars(budgetCategoriesData);
-    await fetchBudgetTransactions();
-  } catch(e){
-    console.error('Categories fetch error — using fallback:', e);
-    budgetCategoriesData = FALLBACK_CATEGORIES;
-    renderBudgetBars(budgetCategoriesData);
-    if(badge) badge.textContent = 'ידני (Sheets לא זמין)';
-    await fetchBudgetTransactions();
-  }
-}
-
-async function fetchBudgetTransactions(){
-  const badge = document.getElementById('budget-badge');
-  try {
-    const res  = await fetch(APPS_SCRIPT_URL + '?action=getTransactions');
-    const data = await res.json();
-
-    // Apps Script returns { success, data: [[header], [row], ...] }
-    const raw = Array.isArray(data) ? data : (data.data || data.transactions || []);
-    console.log('getTransactions raw rows:', raw.length);
-
-    let txns = [];
-    if(raw.length > 1){
-      const headers = raw[0].map(h => String(h).trim().toLowerCase());
-      // Map header names to field keys
-      const idx = {
-        date:           headers.findIndex(h => h.includes('תאריך') || h === 'date'),
-        merchant:       headers.findIndex(h => h.includes('עסק') || h === 'merchant'),
-        amount:         headers.findIndex(h => h.includes('סכום') || h === 'amount'),
-        card:           headers.findIndex(h => h.includes('כרטיס') || h === 'card'),
-        status:         headers.findIndex(h => h.includes('סטטוס') || h === 'status'),
-        category:       headers.findIndex(h => h.includes('קטגוריה') || h === 'category'),
-        classification: headers.findIndex(h => h.includes('סיווג') || h === 'classification'),
-      };
-      console.log('column index map:', idx);
-
-      const now = new Date();
-      const ny = now.getFullYear(), nm = now.getMonth();
-
-      for(let i = 1; i < raw.length; i++){
-        const r = raw[i];
-        if(!r || r.every(c => c === '' || c == null)) continue;
-
-        const dateRaw = idx.date >= 0 ? r[idx.date] : '';
-        const dateStr = dateRaw ? String(dateRaw).substring(0, 10) : '';
-        if(!dateStr) continue;
-        const d = new Date(dateStr);
-        if(isNaN(d)) continue;
-        if(d.getFullYear() !== ny || d.getMonth() !== nm) continue;
-
-        txns.push({
-          rowIndex:       i + 1,           // sheet row (header = row 1)
-          date:           dateStr,
-          merchant:       idx.merchant       >= 0 ? r[idx.merchant]       : '',
-          amount:         idx.amount         >= 0 ? parseFloat(r[idx.amount]) || 0 : 0,
-          card:           idx.card           >= 0 ? String(r[idx.card])    : '',
-          status:         idx.status         >= 0 ? r[idx.status]          : '',
-          category:       idx.category       >= 0 ? r[idx.category]        : '',
-          classification: idx.classification >= 0 ? r[idx.classification]  : '',
-        });
-      }
-    }
-
-    console.log('transactions this month:', txns.length);
-    applyBudgetData(txns);
-    renderUnclassified(txns);
-    if(badge) badge.textContent = 'חודשי · Sheets';
-  } catch(e){
-    console.error('Transactions fetch error:', e);
-    if(badge) badge.textContent = 'שגיאה בטעינה';
-  }
-}
-
-// ── Sum transactions per category and update bars ────────────────────────
-function applyBudgetData(transactions){
-  const sums = {};
-  transactions.forEach(t => {
-    const cat = t.category;
-    if(budgetCategoriesData.find(c => c.category===cat)){
-      sums[cat] = (sums[cat]||0) + Math.abs(parseFloat(t.amount)||0);
-    }
-  });
-  budgetCategoriesData.forEach(cat => {
-    const k = catKey(cat.category);
-    const inp = document.getElementById(k+'-input');
-    if(inp){ inp.value = sums[cat.category]||0; recalcBudgetCat(cat.category); }
-  });
-}
-
-// ── Unclassified table ────────────────────────────────────────────────────
-function buildCategoryOpts(){
-  // Options from budget categories + common non-budget extras
-  const extras = ['השקעות','ילדים','ביטוח','תקשורת','עסקי'];
-  const defaultClassification = {
-    'בילויים':'מסעדות','מזון וצריכה':'סופרמרקט','בריאות':'רפואה',
-    'השקעות':'Blink','עסקי':'לסיווג'
-  };
-  const cats = budgetCategoriesData.map(c=>c.category);
-  extras.forEach(e=>{ if(!cats.includes(e)) cats.push(e); });
-  return cats.map(cat => {
-    const cls = defaultClassification[cat]||'שונות';
-    return `<option value="${cat}|${cls}">${cat}</option>`;
-  }).join('');
-}
-
-function renderUnclassified(transactions){
-  const uncl = transactions.filter(t => t.category==='שונות' && t.classification==='לסיווג');
-  const section   = document.getElementById('unclassified-section');
-  const countBadge = document.getElementById('uncl-count-badge');
-  if(!uncl.length){ section.style.display='none'; return; }
-
-  section.style.display = 'block';
-  if(countBadge) countBadge.textContent = uncl.length + ' עסקאות';
-
-  const opts = buildCategoryOpts();
-  let html = '';
-  uncl.forEach(t => {
-    const amt  = Math.abs(parseFloat(t.amount)||0).toFixed(2);
-    const card = String(t.card).endsWith('9716') ? 'אישי' : 'עסקי';
-    html += `
-    <div class="uncl-row" data-row="${t.rowIndex||''}" data-amount="${Math.abs(parseFloat(t.amount)||0)}">
-      <div class="uncl-info">
-        <span class="uncl-date">${t.date||''}</span>
-        <span class="uncl-merchant">${t.merchant||''}</span>
-        <span class="uncl-meta">₪${amt} · ${card}</span>
-      </div>
-      <div class="uncl-actions">
-        <select class="uncl-select">
-          <option value="">בחר קטגוריה</option>
-          ${opts}
-        </select>
-        <button class="uncl-save" onclick="saveCategoryUpdate(this)">שמור</button>
-      </div>
-    </div>`;
-  });
-  document.getElementById('unclassified-rows').innerHTML = html;
-}
-
-async function saveCategoryUpdate(btn){
-  // ── קריאת נתונים מה-DOM ──────────────────────────────────────────────
-  const row    = btn.closest('.uncl-row');
-  if(!row) return;
-  const select = row.querySelector('.uncl-select');
-  if(!select || !select.value){ if(select) select.style.borderColor='var(--r)'; return; }
-
-  const rowIndex = row.dataset.row;
-  const amount   = parseFloat(row.dataset.amount) || 0;
-  const [category, classification] = select.value.split('|');
-
-  // ── UI: מיידית לפני כל await ─────────────────────────────────────────
-  btn.disabled    = true;
-  btn.textContent = '...';
-
-  // ── שליחה ל-Apps Script ──────────────────────────────────────────────
-  // mode:no-cors — Apps Script אינו מחזיר CORS headers ב-POST preflight
-  // התגובה אטומה אבל הבקשה מגיעה לשרת
-  try {
-    await fetch(APPS_SCRIPT_URL, {
-      method:  'POST',
-      mode:    'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ action: 'updateCategory', rowIndex: Number(rowIndex), category, classification })
-    });
-  } catch(e){
-    // no-cors כמעט אף פעם לא זורק — אבל אם כן, ממשיכים בכל זאת (optimistic update)
-    console.warn('saveCategoryUpdate fetch warning:', e);
-  }
-
-  // ── עדכון UI אחרי שמירה ──────────────────────────────────────────────
-  row.remove();
-  const remaining  = document.querySelectorAll('#unclassified-rows .uncl-row');
-  const countBadge = document.getElementById('uncl-count-badge');
-  if(!remaining.length){
-    document.getElementById('unclassified-section').style.display = 'none';
-  } else if(countBadge){
-    countBadge.textContent = remaining.length + ' עסקאות';
-  }
-
-  // הוסף לפס הקטגוריה החדשה
-  if(budgetCategoriesData.find(c => c.category === category)){
-    const k   = catKey(category);
-    const inp = document.getElementById(k + '-input');
-    if(inp){ inp.value = (parseFloat(inp.value) || 0) + amount; recalcBudgetCat(category); }
-  }
-  // הפחת מפס שונות
-  if(budgetCategoriesData.find(c => c.category === 'שונות')){
-    const mk = catKey('שונות');
-    const mi = document.getElementById(mk + '-input');
-    if(mi){ mi.value = Math.max(0, (parseFloat(mi.value) || 0) - amount); recalcBudgetCat('שונות'); }
-  }
-}
-
 // Load on startup
 loadWorkData();
-fetchBudgetCategories();
+fetchMaxBilling();
 </script>
 </body>
 </html>
