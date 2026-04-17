@@ -1448,7 +1448,7 @@ function parseTxDate(v){
 }
 
 async function fetchMaxBilling(){
-  const { startStr, endStr, label } = getBillingCycle();
+  const { label } = getBillingCycle();
   const cycleEl = document.getElementById('cc-cycle-label');
   const badgeEl = document.getElementById('cc-badge');
   const persEl  = document.getElementById('cc-personal-val');
@@ -1456,31 +1456,29 @@ async function fetchMaxBilling(){
   const totEl   = document.getElementById('cc-total');
   if(cycleEl) cycleEl.textContent = label;
 
-  const rows = await fetchSheetRows('עסקאות');
+  const rows = await fetchSheetRows('הגדרות');
   if(!rows){
     [persEl, busEl].forEach(el => { if(el) el.textContent = 'שגיאה'; });
     if(badgeEl) badgeEl.textContent = 'שגיאה';
     return;
   }
 
-  let personal = 0, business = 0;
-  for(let i=1; i<rows.length; i++){
-    const r = rows[i];
+  // גיליון "הגדרות": עמודה A = מפתח, עמודה B = ערך
+  const settings = {};
+  for(const r of rows){
     if(!r.c) continue;
-    const dateStr = parseTxDate(r.c[0]?.v);
-    if(!dateStr || dateStr < startStr || dateStr > endStr) continue;
-    const amount = parseFloat(r.c[2]?.v) || 0;
-    if(amount >= 0) continue; // skip refunds/credits, only count charges
-    const charge = Math.abs(amount);
-    const card   = String(r.c[3]?.v || '');
-    if(card.includes('9716'))      personal += charge;
-    else if(card.includes('0710')) business += charge;
+    const key = String(r.c[0]?.v || '').trim();
+    const val = r.c[1]?.v;
+    if(key) settings[key] = val;
   }
+
+  const personal = parseFloat(settings['upcoming_personal']) || 0;
+  const business = parseFloat(settings['upcoming_business']) || 0;
 
   if(persEl) persEl.textContent = fmtMoney(personal);
   if(busEl)  busEl.textContent  = fmtMoney(business);
   if(totEl)  totEl.textContent  = fmtMoney(personal + business);
-  if(badgeEl) badgeEl.textContent = 'MAX · עסקאות';
+  if(badgeEl) badgeEl.textContent = 'MAX · הגדרות';
 }
 
 // ─── SYNC NET FROM P&L ───
