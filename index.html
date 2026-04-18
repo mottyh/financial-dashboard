@@ -1112,20 +1112,20 @@ body{
       <div class="balance-item" id="asset-check-matzuyanim">
         <div>
           <div class="bi-name">עו"ש מצוינים</div>
-          <div class="bi-sub">828-324600/51 · עודכן היום</div>
+          <div class="bi-sub">828-324600/51 · <span id="leumi-update-badge">טוען...</span></div>
         </div>
-        <div class="bi-amount pos">₪1,018</div>
+        <div class="bi-amount pos" id="asset-biz-amount">טוען...</div>
       </div>
       <div class="balance-item" id="asset-check-moti">
         <div>
           <div class="bi-name">עו"ש מוטי אישי</div>
-          <div class="bi-sub">946-412752/25 · עודכן היום</div>
+          <div class="bi-sub">946-412752/25 · <span id="leumi-update-badge-pers">טוען...</span></div>
         </div>
-        <div class="bi-amount pos">₪16,307</div>
+        <div class="bi-amount pos" id="asset-pers-amount">טוען...</div>
       </div>
       <div class="balance-total" style="background:rgba(45,212,160,.05);">
         <div style="color:var(--mu2);font-size:12px;">סה"כ עו"ש בזכות</div>
-        <div style="color:var(--g);">₪17,325</div>
+        <div style="color:var(--g);" id="asset-check-total-val">טוען...</div>
       </div>
     </div>
 
@@ -1479,6 +1479,61 @@ async function fetchMaxBilling(){
   if(busEl)  busEl.textContent  = fmtMoney(Math.abs(business));
   if(totEl)  totEl.textContent  = fmtMoney(Math.abs(personal + business));
   if(badgeEl) badgeEl.textContent = 'MAX · הגדרות';
+
+  applyLeumiBalances(settings);
+}
+
+function applyLeumiBalances(settings){
+  const biz  = parseFloat(settings['leumi_business_balance']);
+  const pers = parseFloat(settings['leumi_personal_balance']);
+
+  const bizAssetRow  = document.getElementById('asset-check-matzuyanim');
+  const persAssetRow = document.getElementById('asset-check-moti');
+  const bizAmountEl  = document.getElementById('asset-biz-amount');
+  const persAmountEl = document.getElementById('asset-pers-amount');
+  const totalEl      = document.getElementById('asset-check-total-val');
+  const badgeBiz     = document.getElementById('leumi-update-badge');
+  const badgePers    = document.getElementById('leumi-update-badge-pers');
+
+  const liabSection  = document.getElementById('liab-checking');
+  const liabBizRow   = document.getElementById('liab-check-matzuyanim');
+  const liabPersRow  = document.getElementById('liab-check-moti');
+  const liabBizVal   = document.getElementById('liab-check-matzuyanim-val');
+  const liabPersVal  = document.getElementById('liab-check-moti-val');
+
+  const today = new Date().toLocaleDateString('he-IL',{day:'numeric',month:'numeric'});
+  if(badgeBiz)  badgeBiz.textContent  = 'עודכן ' + today;
+  if(badgePers) badgePers.textContent = 'עודכן ' + today;
+
+  // Business account (828)
+  if(!isNaN(biz) && biz < 0){
+    if(bizAssetRow)  bizAssetRow.style.display = 'none';
+    if(liabBizRow){  liabBizRow.style.display = ''; }
+    if(liabBizVal)   liabBizVal.textContent = fmtMoney(Math.abs(biz));
+  } else {
+    if(bizAssetRow)  bizAssetRow.style.display = '';
+    if(bizAmountEl){ bizAmountEl.textContent = isNaN(biz) ? '—' : fmtMoney(biz); }
+    if(liabBizRow)   liabBizRow.style.display = 'none';
+  }
+
+  // Personal account (946)
+  if(!isNaN(pers) && pers < 0){
+    if(persAssetRow) persAssetRow.style.display = 'none';
+    if(liabPersRow){ liabPersRow.style.display = ''; }
+    if(liabPersVal)  liabPersVal.textContent = fmtMoney(Math.abs(pers));
+  } else {
+    if(persAssetRow) persAssetRow.style.display = '';
+    if(persAmountEl){ persAmountEl.textContent = isNaN(pers) ? '—' : fmtMoney(pers); }
+    if(liabPersRow)  liabPersRow.style.display = 'none';
+  }
+
+  // Show liabilities section only if any account is negative
+  if(liabSection) liabSection.style.display = ((!isNaN(biz) && biz < 0) || (!isNaN(pers) && pers < 0)) ? '' : 'none';
+
+  // Total assets (sum of positive balances only)
+  const assetSum = ((!isNaN(biz)  && biz  > 0) ? biz  : 0)
+                 + ((!isNaN(pers) && pers > 0) ? pers : 0);
+  if(totalEl) totalEl.textContent = fmtMoney(assetSum);
 }
 
 // ─── SYNC NET FROM P&L ───
