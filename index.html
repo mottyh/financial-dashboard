@@ -928,14 +928,14 @@ body{
     <div class="nw-hero">
       <div>
         <div class="nw-label">שווי נקי</div>
-        <div class="nw-value neg" style="font-size:26px;">‎-₪22,056</div>
+        <div class="nw-value" id="nw-value" style="font-size:26px;">טוען...</div>
         <div style="font-size:10px;color:var(--mu);margin-top:4px;">נכסים פחות התחייבויות</div>
       </div>
       <div style="text-align:left;">
         <div style="font-size:10px;color:var(--mu);margin-bottom:4px;">נכסים</div>
-        <div style="font-size:13px;font-weight:700;color:var(--g);">₪107,483</div>
+        <div style="font-size:13px;font-weight:700;color:var(--g);" id="nw-assets">טוען...</div>
         <div style="font-size:10px;color:var(--mu);margin-top:6px;margin-bottom:4px;">התחייבויות</div>
-        <div style="font-size:13px;font-weight:700;color:var(--r);">₪129,539</div>
+        <div style="font-size:13px;font-weight:700;color:var(--r);" id="nw-liabilities">טוען...</div>
       </div>
     </div>
 
@@ -948,33 +948,8 @@ body{
     </div>
 
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
-      <div class="loan-item">
-        <div class="loan-top">
-          <div class="loan-name">MAX אישי — כרטיס 9716</div>
-          <div class="loan-balance">₪9,915</div>
-        </div>
-        <div class="loan-meta">
-          <span>מסגרת: ₪39,000</span>
-          <span>ניצול: 25%</span>
-          <span>סר"ח: 15.04.26</span>
-        </div>
-        <div class="loan-progress"><div class="loan-bar" style="width:25%"></div></div>
-      </div>
-      <div class="loan-item">
-        <div class="loan-top">
-          <div class="loan-name">MAX עסקי — כרטיס 0710</div>
-          <div class="loan-balance">₪6,614</div>
-        </div>
-        <div class="loan-meta">
-          <span>מסגרת: ₪7,000</span>
-          <span>ניצול: 94%</span>
-          <span>סר"ח: 15.04.26</span>
-        </div>
-        <div class="loan-progress"><div class="loan-bar" style="width:94%;background:var(--r);"></div></div>
-      </div>
-      <div class="balance-total" style="background:rgba(240,96,112,.05);">
-        <div style="color:var(--mu2);font-size:12px;">סה"כ ניצול מסגרות</div>
-        <div style="color:var(--r);">₪16,529</div>
+      <div id="max-cards-container">
+        <div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">טוען...</div>
       </div>
     </div>
 
@@ -985,93 +960,8 @@ body{
     </div>
 
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
-
-      <div class="balance-group-title">מצוינים בע"מ — לאומי (828-324600/51)</div>
-
-      <div class="loan-item">
-        <div class="loan-top">
-          <div class="loan-name">הל"ז ע.מדינה לל"א השתתפות</div>
-          <div class="loan-balance">₪8,105</div>
-        </div>
-        <div class="loan-meta">
-          <span>₪628/חודש</span>
-          <span>ריבית: 7%</span>
-          <span>סיום: 09/2026</span>
-        </div>
-        <div class="loan-progress"><div class="loan-bar" style="width:14%"></div></div>
-      </div>
-
-      <div class="loan-item">
-        <div class="loan-top">
-          <div class="loan-name">לא צמוד ר.משתנה מיום זא</div>
-          <div class="loan-balance">₪13,261</div>
-        </div>
-        <div class="loan-meta">
-          <span>₪1,240/חודש</span>
-          <span>ריבית: 8.95%</span>
-          <span>סיום: 02/2028</span>
-        </div>
-        <div class="loan-progress"><div class="loan-bar" style="width:44%"></div></div>
-      </div>
-
-      <div class="loan-item">
-        <div class="loan-top">
-          <div class="loan-name">מט"י ז"א לא צמוד ר.משתנה</div>
-          <div class="loan-balance">₪46,739</div>
-        </div>
-        <div class="loan-meta">
-          <span>₪1,374/חודש</span>
-          <span>ריבית: 8.5%</span>
-          <span>סיום: 11/2029</span>
-        </div>
-        <div class="loan-progress"><div class="loan-bar" style="width:78%"></div></div>
-      </div>
-
-      <div class="balance-total" style="background:rgba(240,96,112,.05);">
-        <div style="color:var(--mu2);font-size:12px;">סה"כ מצוינים · ₪3,242/חודש</div>
-        <div style="color:var(--r);">₪68,105</div>
-      </div>
-
-      <div class="balance-group-title" style="border-top:1px solid var(--bd);">מוטי אישי</div>
-
-      <div class="loan-item">
-        <div class="loan-top">
-          <div class="loan-name">לא צמוד ר.משתנה — לאומי</div>
-          <div class="loan-balance">₪29,645</div>
-        </div>
-        <div class="loan-meta">
-          <span>₪1,256/חודש</span>
-          <span>ריבית: 8.95%</span>
-          <span>סיום: 05/2028</span>
-        </div>
-        <div class="loan-progress"><div class="loan-bar" style="width:49%"></div></div>
-      </div>
-
-      <div class="loan-item">
-        <div class="loan-top">
-          <div class="loan-name">הלוואת MAX — כרטיס 9716</div>
-          <div class="loan-balance">₪15,260</div>
-        </div>
-        <div class="loan-meta">
-          <span>₪785/חודש</span>
-          <span>ריבית: 8.5%</span>
-          <span>39/60 תשלומים</span>
-        </div>
-        <div class="loan-progress"><div class="loan-bar" style="width:40%"></div></div>
-      </div>
-
-      <div class="balance-total" style="background:rgba(240,96,112,.05);">
-        <div style="color:var(--mu2);font-size:12px;">סה"כ מוטי · ₪2,041/חודש</div>
-        <div style="color:var(--r);">₪44,905</div>
-      </div>
-
-      <div class="balance-total" style="background:var(--s3);border-top:2px solid var(--bd2);">
-        <div style="color:var(--txt);font-size:13px;">סה"כ הלוואות</div>
-        <div style="color:var(--r);font-size:18px;">₪113,010</div>
-      </div>
-      <div class="balance-total" style="background:var(--s3);">
-        <div style="color:var(--mu2);font-size:12px;">החזר חודשי כולל</div>
-        <div style="color:var(--r);font-size:14px;font-weight:700;">₪5,283</div>
+      <div id="loans-container">
+        <div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">טוען...</div>
       </div>
     </div>
 
@@ -1136,30 +1026,8 @@ body{
     </div>
 
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
-      <div class="balance-item">
-        <div>
-          <div class="bi-name">הראל פנסיה</div>
-          <div class="bi-sub">קרן פנסיה · עודכן 05.04.26</div>
-        </div>
-        <div class="bi-amount pos">₪49,207</div>
-      </div>
-      <div class="balance-item">
-        <div>
-          <div class="bi-name">מגדל — ביטוח מנהלים</div>
-          <div class="bi-sub">קרן פנסיה · עודכן 08.03.26</div>
-        </div>
-        <div class="bi-amount pos">₪28,674</div>
-      </div>
-      <div class="balance-item">
-        <div>
-          <div class="bi-name">BLINK — תיק השקעות</div>
-          <div class="bi-sub">$3,945 · שער ₪3.112 · עודכן היום</div>
-        </div>
-        <div class="bi-amount pos">₪12,277</div>
-      </div>
-      <div class="balance-total" style="background:rgba(45,212,160,.05);">
-        <div style="color:var(--mu2);font-size:12px;">סה"כ פנסיות והשקעות</div>
-        <div style="color:var(--g);">₪90,158</div>
+      <div id="manual-assets-container">
+        <div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">טוען...</div>
       </div>
     </div>
 
@@ -1468,8 +1336,13 @@ async function fetchMaxBilling(){
   for(const r of rows){
     if(!r.c) continue;
     const key = String(r.c[0]?.v || '').trim();
-    const val = r.c[1]?.v;
-    if(key) settings[key] = val;
+    const cell = r.c[1];
+    if(!key) continue;
+    settings[key] = cell?.v;
+    // Sheets auto-converts date-like strings to a numeric serial value on
+    // write; `.f` keeps the human-readable formatted text ("2026-09-15
+    // 00:00:00"), which is what date-valued settings should be parsed from.
+    if(cell?.f !== undefined) settings[key + '__f'] = cell.f;
   }
 
   const personal = parseFloat(settings['upcoming_personal']) || 0;
@@ -1481,6 +1354,7 @@ async function fetchMaxBilling(){
   if(badgeEl) badgeEl.textContent = 'MAX · הגדרות';
 
   applyLeumiBalances(settings);
+  renderMaxCards(settings);
 }
 
 function applyLeumiBalances(settings){
@@ -1534,6 +1408,251 @@ function applyLeumiBalances(settings){
   const assetSum = ((!isNaN(biz)  && biz  > 0) ? biz  : 0)
                  + ((!isNaN(pers) && pers > 0) ? pers : 0);
   if(totalEl) totalEl.textContent = fmtMoney(assetSum);
+
+  window._checkingAssetsTotal = assetSum;
+  window._checkingLiabilitiesTotal = ((!isNaN(biz)  && biz  < 0) ? Math.abs(biz)  : 0)
+                                    + ((!isNaN(pers) && pers < 0) ? Math.abs(pers) : 0);
+  recalcNetWorth();
+}
+
+// ─── NET WORTH (assets/liabilities assembled from checking + MAX cards + loans + manual assets) ───
+function recalcNetWorth(){
+  const assets = (window._checkingAssetsTotal || 0) + (window._manualAssetsTotal || 0);
+  const liabilities = (window._checkingLiabilitiesTotal || 0) + (window._maxCardsTotal || 0) + (window._loansTotal || 0);
+  const net = assets - liabilities;
+
+  const netEl = document.getElementById('nw-value');
+  const assetsEl = document.getElementById('nw-assets');
+  const liabEl = document.getElementById('nw-liabilities');
+
+  if(netEl){
+    netEl.textContent = (net>=0 ? '' : '‎-') + fmtMoney(Math.abs(net));
+    netEl.className = 'nw-value ' + (net>=0 ? 'pos' : 'neg');
+  }
+  if(assetsEl) assetsEl.textContent = fmtMoney(assets);
+  if(liabEl) liabEl.textContent = fmtMoney(liabilities);
+}
+
+// ─── MAX CARD BALANCES ───
+function renderMaxCards(settings){
+  const container = document.getElementById('max-cards-container');
+  if(!container) return;
+
+  const personal = parseFloat(settings['max_personal_balance']);
+  const business = parseFloat(settings['max_business_balance']);
+  const balanceDateStr = settings['max_balance_date__f'] || settings['max_balance_date'] || '';
+  const balanceDate = balanceDateStr ? new Date(String(balanceDateStr).replace(' ', 'T')) : null;
+  const dateLabel = balanceDate && !isNaN(balanceDate) ? formatDate(balanceDate) : '';
+
+  const cards = [
+    { label: 'MAX אישי — כרטיס 9716', val: personal },
+    { label: 'MAX עסקי — כרטיס 0710', val: business }
+  ];
+
+  let html = '';
+  let total = 0;
+  let anyValid = false;
+
+  cards.forEach(c => {
+    if(isNaN(c.val)) return;
+    anyValid = true;
+    const owed = Math.abs(c.val);
+    total += owed;
+    html += `
+      <div class="loan-item">
+        <div class="loan-top">
+          <div class="loan-name">${c.label}</div>
+          <div class="loan-balance">${fmtMoney(owed)}</div>
+        </div>
+        ${dateLabel ? `<div class="loan-meta"><span>נכון ל-${dateLabel}</span></div>` : ''}
+      </div>`;
+  });
+
+  if(!anyValid){
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין נתוני יתרה זמינים</div>';
+    window._maxCardsTotal = 0;
+    recalcNetWorth();
+    return;
+  }
+
+  html += `
+    <div class="balance-total" style="background:rgba(240,96,112,.05);">
+      <div style="color:var(--mu2);font-size:12px;">סה"כ חיוב כרטיסים</div>
+      <div style="color:var(--r);">${fmtMoney(total)}</div>
+    </div>`;
+
+  container.innerHTML = html;
+  window._maxCardsTotal = total;
+  recalcNetWorth();
+}
+
+// ─── LOANS ───
+const LOANS_SHEET_NAME = 'הלוואות';
+
+function monthsBetween(d1, d2){
+  return (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+}
+
+function loanRemainingBalance(loan, asOf){
+  const start = new Date(loan.start_date);
+  const end   = new Date(loan.end_date);
+  const P   = parseFloat(loan.initial_amount) || 0;
+  const pmt = parseFloat(loan.monthly_payment) || 0;
+  const monthlyRate = (parseFloat(loan.rate) || 0) / 100 / 12;
+  const totalMonths = Math.max(monthsBetween(start, end), 1);
+  const elapsed = Math.min(Math.max(monthsBetween(start, asOf), 0), totalMonths);
+
+  let remaining;
+  if(monthlyRate === 0){
+    remaining = P - pmt * elapsed;
+  } else {
+    remaining = P * Math.pow(1 + monthlyRate, elapsed) - pmt * ((Math.pow(1 + monthlyRate, elapsed) - 1) / monthlyRate);
+  }
+  return { remaining: Math.max(remaining, 0), pctPaid: totalMonths ? Math.min(elapsed / totalMonths, 1) : 0 };
+}
+
+async function loadLoans(){
+  const container = document.getElementById('loans-container');
+  if(!container) return;
+
+  const rows = await fetchSheetRows(LOANS_SHEET_NAME);
+  if(!rows || rows.length <= 1){
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין הלוואות רשומות</div>';
+    window._loansTotal = 0;
+    recalcNetWorth();
+    return;
+  }
+
+  const loans = rows.slice(1).map(r => {
+    if(!r.c) return null;
+    return {
+      id: r.c[0]?.v,
+      owner: r.c[1]?.v,
+      name: r.c[2]?.v,
+      initial_amount: r.c[3]?.v,
+      rate: r.c[4]?.v,
+      monthly_payment: r.c[5]?.v,
+      start_date: parseTxDate(r.c[6]?.v),
+      end_date: parseTxDate(r.c[7]?.v)
+    };
+  }).filter(l => l && l.id);
+
+  const now = new Date();
+  const groups = {};
+  let grandTotal = 0, grandMonthly = 0;
+
+  loans.forEach(loan => {
+    const { remaining, pctPaid } = loanRemainingBalance(loan, now);
+    loan._remaining = remaining;
+    loan._pctPaid = pctPaid;
+    grandTotal += remaining;
+    grandMonthly += parseFloat(loan.monthly_payment) || 0;
+    const owner = loan.owner || 'אחר';
+    (groups[owner] = groups[owner] || []).push(loan);
+  });
+
+  let html = '';
+  Object.entries(groups).forEach(([owner, loansInGroup]) => {
+    html += `<div class="balance-group-title">${owner}</div>`;
+    let subtotal = 0, subtotalMonthly = 0;
+    loansInGroup.forEach(loan => {
+      subtotal += loan._remaining;
+      subtotalMonthly += parseFloat(loan.monthly_payment) || 0;
+      const pct = Math.round(loan._pctPaid * 100);
+      html += `
+        <div class="loan-item">
+          <div class="loan-top">
+            <div class="loan-name">${loan.name || ''}</div>
+            <div class="loan-balance">${fmtMoney(loan._remaining)}</div>
+          </div>
+          <div class="loan-meta">
+            <span>${fmtMoney(loan.monthly_payment)}/חודש</span>
+            <span>ריבית: ${loan.rate}%</span>
+            <span>סיום: ${loan.end_date ? formatDate(new Date(loan.end_date)) : '—'}</span>
+          </div>
+          <div class="loan-progress"><div class="loan-bar" style="width:${pct}%"></div></div>
+        </div>`;
+    });
+    html += `
+      <div class="balance-total" style="background:rgba(240,96,112,.05);">
+        <div style="color:var(--mu2);font-size:12px;">סה"כ ${owner} · ${fmtMoney(subtotalMonthly)}/חודש</div>
+        <div style="color:var(--r);">${fmtMoney(subtotal)}</div>
+      </div>`;
+  });
+
+  html += `
+    <div class="balance-total" style="background:var(--s3);border-top:2px solid var(--bd2);">
+      <div style="color:var(--txt);font-size:13px;">סה"כ הלוואות</div>
+      <div style="color:var(--r);font-size:18px;">${fmtMoney(grandTotal)}</div>
+    </div>
+    <div class="balance-total" style="background:var(--s3);">
+      <div style="color:var(--mu2);font-size:12px;">החזר חודשי כולל</div>
+      <div style="color:var(--r);font-size:14px;font-weight:700;">${fmtMoney(grandMonthly)}</div>
+    </div>`;
+
+  container.innerHTML = html;
+  window._loansTotal = grandTotal;
+  recalcNetWorth();
+}
+
+// ─── MANUAL ASSETS (pensions / investments) ───
+const ASSETS_SHEET_NAME = 'נכסים ידניים';
+
+async function loadManualAssets(){
+  const container = document.getElementById('manual-assets-container');
+  if(!container) return;
+
+  const rows = await fetchSheetRows(ASSETS_SHEET_NAME);
+  if(!rows || rows.length <= 1){
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין נכסים רשומים</div>';
+    window._manualAssetsTotal = 0;
+    recalcNetWorth();
+    return;
+  }
+
+  const assets = rows.slice(1).map(r => {
+    if(!r.c) return null;
+    return {
+      id: r.c[0]?.v,
+      name: r.c[1]?.v,
+      type: r.c[2]?.v,
+      value: parseFloat(r.c[3]?.v) || 0,
+      currency: r.c[4]?.v || 'ILS',
+      fx_rate: parseFloat(r.c[5]?.v) || null,
+      updated_date: parseTxDate(r.c[6]?.v)
+    };
+  }).filter(a => a && a.id);
+
+  let html = '';
+  let total = 0;
+
+  assets.forEach(a => {
+    const isForeign = a.currency && a.currency !== 'ILS' && a.fx_rate;
+    const ilsValue = isForeign ? a.value * a.fx_rate : a.value;
+    total += ilsValue;
+    const dateLabel = a.updated_date ? formatDate(new Date(a.updated_date)) : '';
+    const sub = isForeign
+      ? `${a.type || ''} · ${a.currency}${a.value.toLocaleString('he-IL')} · שער ₪${a.fx_rate} · עודכן ${dateLabel}`
+      : `${a.type || ''} · עודכן ${dateLabel}`;
+    html += `
+      <div class="balance-item">
+        <div>
+          <div class="bi-name">${a.name || ''}</div>
+          <div class="bi-sub">${sub}</div>
+        </div>
+        <div class="bi-amount pos">${fmtMoney(ilsValue)}</div>
+      </div>`;
+  });
+
+  html += `
+    <div class="balance-total" style="background:rgba(45,212,160,.05);">
+      <div style="color:var(--mu2);font-size:12px;">סה"כ פנסיות והשקעות</div>
+      <div style="color:var(--g);">${fmtMoney(total)}</div>
+    </div>`;
+
+  container.innerHTML = html;
+  window._manualAssetsTotal = total;
+  recalcNetWorth();
 }
 
 // ─── SYNC NET FROM P&L ───
@@ -1925,6 +2044,8 @@ function changeWorkMonth(d){
 // Load on startup
 loadWorkData();
 fetchMaxBilling();
+loadLoans();
+loadManualAssets();
 </script>
 </body>
 </html>
