@@ -719,7 +719,7 @@ body{
     <!-- לבנה 2: תזרים חשבונות -->
     <div class="section-header">
       <div class="section-title">תזרים חשבונות</div>
-      <div class="update-badge">לאומי · ידני</div>
+      <div class="update-badge">לאומי · חי</div>
     </div>
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
       <table class="cf-table">
@@ -1413,6 +1413,30 @@ function applyLeumiBalances(settings){
   window._checkingLiabilitiesTotal = ((!isNaN(biz)  && biz  < 0) ? Math.abs(biz)  : 0)
                                     + ((!isNaN(pers) && pers < 0) ? Math.abs(pers) : 0);
   recalcNetWorth();
+
+  applyCashflowBalances(settings, biz, pers);
+}
+
+// "נוכחי" = אותה יתרת לאומי חיה שמזינה את מסך המאזן; "פתיחת חודש" נקרא
+// ממפתח שהסקרייפר כותב אוטומטית ביום ה-1 לחודש (opening_balance_*_YYYY-MM).
+// השדות נשארים ניתנים לעריכה ידנית לדריסה חד-פעמית.
+function applyCashflowBalances(settings, biz, pers){
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const bizOpen  = parseFloat(settings[`opening_balance_business_${monthKey}`]);
+  const persOpen = parseFloat(settings[`opening_balance_personal_${monthKey}`]);
+
+  const bizNowEl   = document.getElementById('cf-biz-now');
+  const persNowEl  = document.getElementById('cf-pers-now');
+  const bizOpenEl  = document.getElementById('cf-biz-open');
+  const persOpenEl = document.getElementById('cf-pers-open');
+
+  if(bizNowEl   && !isNaN(biz))     bizNowEl.value   = biz;
+  if(persNowEl  && !isNaN(pers))    persNowEl.value  = pers;
+  if(bizOpenEl  && !isNaN(bizOpen)) bizOpenEl.value  = bizOpen;
+  if(persOpenEl && !isNaN(persOpen))persOpenEl.value = persOpen;
+
+  recalcCF();
 }
 
 // ─── NET WORTH (assets/liabilities assembled from checking + MAX cards + loans + manual assets) ───
