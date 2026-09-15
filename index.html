@@ -1643,13 +1643,16 @@ async function loadManualAssets(){
   let html = '';
   let total = 0;
 
+  const CURRENCY_SYMBOLS = { USD: '$', EUR: '€', GBP: '£' };
+
   assets.forEach(a => {
     const isForeign = a.currency && a.currency !== 'ILS' && a.fx_rate;
     const ilsValue = isForeign ? a.value * a.fx_rate : a.value;
     total += ilsValue;
     const dateLabel = a.updated_date ? formatDate(new Date(a.updated_date)) : '';
+    const currencySymbol = CURRENCY_SYMBOLS[a.currency] || (a.currency ? a.currency + ' ' : '');
     const sub = isForeign
-      ? `${a.type || ''} · ${a.currency}${a.value.toLocaleString('he-IL')} · שער ₪${a.fx_rate} · עודכן ${dateLabel}`
+      ? `${a.type || ''} · ${currencySymbol}${a.value.toLocaleString('he-IL')} · שער ₪${a.fx_rate} · עודכן ${dateLabel}`
       : `${a.type || ''} · עודכן ${dateLabel}`;
     html += `
       <div class="balance-item">
