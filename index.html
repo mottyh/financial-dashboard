@@ -1493,22 +1493,33 @@ function monthsBetween(d1, d2){
   return (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
 }
 
+// Projects forward from the last known real balance (balance_as_of_date/
+// _amount, refreshed periodically from bank statements) rather than from
+// loan origination — origination-based amortization drifts ~5-8% from the
+// bank's real figure due to day-of-month rounding compounding over years,
+// while a few months of projection off a real anchor stays accurate.
+// initial_amount/start_date are kept for reference and for the progress bar.
 function loanRemainingBalance(loan, asOf){
   const start = new Date(loan.start_date);
   const end   = new Date(loan.end_date);
-  const P   = parseFloat(loan.initial_amount) || 0;
   const pmt = parseFloat(loan.monthly_payment) || 0;
   const monthlyRate = (parseFloat(loan.rate) || 0) / 100 / 12;
-  const totalMonths = Math.max(monthsBetween(start, end), 1);
-  const elapsed = Math.min(Math.max(monthsBetween(start, asOf), 0), totalMonths);
+
+  const hasAnchor = loan.balance_as_of_date && loan.balance_as_of_amount !== '' && loan.balance_as_of_amount !== undefined && loan.balance_as_of_amount !== null;
+  const anchorDate = hasAnchor ? new Date(loan.balance_as_of_date) : start;
+  const anchorAmount = hasAnchor ? parseFloat(loan.balance_as_of_amount) : (parseFloat(loan.initial_amount) || 0);
+  const elapsedFromAnchor = Math.max(monthsBetween(anchorDate, asOf), 0);
 
   let remaining;
   if(monthlyRate === 0){
-    remaining = P - pmt * elapsed;
+    remaining = anchorAmount - pmt * elapsedFromAnchor;
   } else {
-    remaining = P * Math.pow(1 + monthlyRate, elapsed) - pmt * ((Math.pow(1 + monthlyRate, elapsed) - 1) / monthlyRate);
+    remaining = anchorAmount * Math.pow(1 + monthlyRate, elapsedFromAnchor) - pmt * ((Math.pow(1 + monthlyRate, elapsedFromAnchor) - 1) / monthlyRate);
   }
-  return { remaining: Math.max(remaining, 0), pctPaid: totalMonths ? Math.min(elapsed / totalMonths, 1) : 0 };
+
+  const totalMonths = Math.max(monthsBetween(start, end), 1);
+  const elapsedFromStart = Math.min(Math.max(monthsBetween(start, asOf), 0), totalMonths);
+  return { remaining: Math.max(remaining, 0), pctPaid: totalMonths ? Math.min(elapsedFromStart / totalMonths, 1) : 0 };
 }
 
 async function loadLoans(){
@@ -1516,14 +1527,11 @@ async function loadLoans(){
   if(!container) return;
 
   const rows = await fetchSheetRows(LOANS_SHEET_NAME);
-  if(!rows || rows.length <= 1){
-    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין הלוואות רשומות</div>';
-    window._loansTotal = 0;
-    recalcNetWorth();
-    return;
-  }
-
-  const loans = rows.slice(1).map(r => {
+  // gviz's header-row auto-detection is inconsistent (it strips row 1 once
+  // real data exists below it, but keeps it when the sheet has only a
+  // header) — so filter the literal header row out by content, not by
+  // position, rather than guessing an offset.
+  const loans = (rows || []).map(r => {
     if(!r.c) return null;
     return {
       id: r.c[0]?.v,
@@ -1533,9 +1541,18 @@ async function loadLoans(){
       rate: r.c[4]?.v,
       monthly_payment: r.c[5]?.v,
       start_date: parseTxDate(r.c[6]?.v),
-      end_date: parseTxDate(r.c[7]?.v)
+      end_date: parseTxDate(r.c[7]?.v),
+      balance_as_of_date: parseTxDate(r.c[8]?.v),
+      balance_as_of_amount: r.c[9]?.v
     };
-  }).filter(l => l && l.id);
+  }).filter(l => l && l.id && l.id !== 'id');
+
+  if(loans.length === 0){
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין הלוואות רשומות</div>';
+    window._loansTotal = 0;
+    recalcNetWorth();
+    return;
+  }
 
   const now = new Date();
   const groups = {};
@@ -1603,14 +1620,7 @@ async function loadManualAssets(){
   if(!container) return;
 
   const rows = await fetchSheetRows(ASSETS_SHEET_NAME);
-  if(!rows || rows.length <= 1){
-    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין נכסים רשומים</div>';
-    window._manualAssetsTotal = 0;
-    recalcNetWorth();
-    return;
-  }
-
-  const assets = rows.slice(1).map(r => {
+  const assets = (rows || []).map(r => {
     if(!r.c) return null;
     return {
       id: r.c[0]?.v,
@@ -1621,7 +1631,14 @@ async function loadManualAssets(){
       fx_rate: parseFloat(r.c[5]?.v) || null,
       updated_date: parseTxDate(r.c[6]?.v)
     };
-  }).filter(a => a && a.id);
+  }).filter(a => a && a.id && a.id !== 'id');
+
+  if(assets.length === 0){
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין נכסים רשומים</div>';
+    window._manualAssetsTotal = 0;
+    recalcNetWorth();
+    return;
+  }
 
   let html = '';
   let total = 0;
