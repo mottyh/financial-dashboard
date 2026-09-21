@@ -753,70 +753,9 @@ body{
     <!-- לבנה 3: ניצול תקציב -->
     <div class="section-header">
       <div class="section-title">ניצול תקציב</div>
-      <div class="update-badge">חודשי · ידני זמני</div>
+      <div class="update-badge" id="budget-badge">חודשי · טוען...</div>
     </div>
-    <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
-
-      <!-- מזון -->
-      <div class="budget-row">
-        <div class="budget-info">
-          <div class="budget-name">מזון</div>
-          <div class="budget-amounts"><span id="bgt-food-spent">₪0</span> מתוך ₪1,600</div>
-        </div>
-        <input class="pl-input" type="number" id="bgt-food-input" value="0" min="0" oninput="recalcBudget('food',1600)">
-        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-food-bar" style="width:0%;background:var(--g);"></div></div>
-      </div>
-
-      <!-- בילויים -->
-      <div class="budget-row">
-        <div class="budget-info">
-          <div class="budget-name">בילויים</div>
-          <div class="budget-amounts"><span id="bgt-fun-spent">₪0</span> מתוך ₪400</div>
-        </div>
-        <input class="pl-input" type="number" id="bgt-fun-input" value="0" min="0" oninput="recalcBudget('fun',400)">
-        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-fun-bar" style="width:0%;background:var(--g);"></div></div>
-      </div>
-
-      <!-- בריאות -->
-      <div class="budget-row">
-        <div class="budget-info">
-          <div class="budget-name">בריאות / רפואה</div>
-          <div class="budget-amounts"><span id="bgt-health-spent">₪0</span> מתוך ₪100</div>
-        </div>
-        <input class="pl-input" type="number" id="bgt-health-input" value="0" min="0" oninput="recalcBudget('health',100)">
-        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-health-bar" style="width:0%;background:var(--g);"></div></div>
-      </div>
-
-      <!-- נסיעות -->
-      <div class="budget-row">
-        <div class="budget-info">
-          <div class="budget-name">נסיעות</div>
-          <div class="budget-amounts"><span id="bgt-travel-spent">₪0</span> מתוך ₪176</div>
-        </div>
-        <input class="pl-input" type="number" id="bgt-travel-input" value="0" min="0" oninput="recalcBudget('travel',176)">
-        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-travel-bar" style="width:0%;background:var(--g);"></div></div>
-      </div>
-
-      <!-- ביגוד/מחייה -->
-      <div class="budget-row">
-        <div class="budget-info">
-          <div class="budget-name">ביגוד / מחייה</div>
-          <div class="budget-amounts"><span id="bgt-clothing-spent">₪0</span> מתוך ₪150</div>
-        </div>
-        <input class="pl-input" type="number" id="bgt-clothing-input" value="0" min="0" oninput="recalcBudget('clothing',150)">
-        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-clothing-bar" style="width:0%;background:var(--g);"></div></div>
-      </div>
-
-      <!-- שונות -->
-      <div class="budget-row" style="border-bottom:none;">
-        <div class="budget-info">
-          <div class="budget-name">שונות</div>
-          <div class="budget-amounts"><span id="bgt-misc-spent">₪0</span> מתוך ₪400</div>
-        </div>
-        <input class="pl-input" type="number" id="bgt-misc-input" value="0" min="0" oninput="recalcBudget('misc',400)">
-        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-misc-bar" style="width:0%;background:var(--g);"></div></div>
-      </div>
-
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;" id="budget-rows-container">
     </div>
 
     <!-- לבנה 4: חיוב כרטיסי אשראי -->
@@ -1276,14 +1215,159 @@ function recalcCF(){
   nowEl.className = totalNow >= 0 ? 'cf-pos' : 'cf-neg';
 }
 
-// ─── BUDGET ───
-function recalcBudget(key, budget){
-  const spent = getNum('bgt-'+key+'-input');
-  document.getElementById('bgt-'+key+'-spent').textContent = '₪' + Math.round(spent).toLocaleString('he-IL');
-  const pct = Math.min(Math.round((spent/budget)*100), 100);
-  const bar = document.getElementById('bgt-'+key+'-bar');
+// ─── BUDGET ENGINE ───
+// Real per-category budget utilization, replacing the old hardcoded 6-category
+// manual-entry version. Reads live transactions + the merchant→category
+// mapping (both added to Apps Script in Phase 5), computes this month's
+// actual spend and a 6-completed-month trailing average per primary
+// category, and persists any manual target override via writeSettings —
+// the dashboard's first real write-on-edit (previously every manual field
+// reset on refresh).
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyU0FHVfTt585JZzJrkb7QP_GIyNC_A_XvzJYRiItRSZWjXjtx5bkbGuVq5BuIxiWP3/exec';
+
+// text/plain avoids a CORS preflight that application/json would trigger from
+// a browser (verified live 2026-09-21) — Apps Script JSON.parses the raw body
+// regardless of the declared content-type, so no server-side change needed.
+async function postToAppsScript(body){
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
+    const text = await res.text();
+    return JSON.parse(text);
+  } catch(e){
+    console.error('Apps Script POST error:', body.action, e);
+    return null;
+  }
+}
+
+const PRIMARY_SLUGS = {
+  'מחיה': 'machaya', 'רכב': 'car', 'דיור': 'housing', 'תקשורת': 'comms',
+  'ביטוח ופנסיה': 'insurance', 'בילויים': 'fun', 'ילדים': 'kids',
+  'השקעות': 'invest', 'רכש': 'procurement', 'שונות': 'misc',
+  'לא מסווג': 'unclassified'
+};
+
+function computeCategoryStats(transactions, mappings){
+  const mapLookup = {};
+  mappings.forEach(m => { mapLookup[m.merchant + '||' + m.card] = m; });
+
+  const now = new Date();
+  const curYear = now.getFullYear(), curMonth = now.getMonth();
+  const curYM = `${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+
+  const trailingMonths = [];
+  for(let i=1; i<=6; i++){
+    const d = new Date(curYear, curMonth - i, 1);
+    trailingMonths.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+
+  const byPrimaryMonth = {};
+  transactions.forEach(t => {
+    if(t.card !== 'personal') return;
+    const map = mapLookup[t.merchant + '||' + t.card];
+    const primary = (map && map.primary) || 'לא מסווג';
+    const d = new Date(t.date);
+    if(isNaN(d)) return;
+    const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const amt = Math.abs(Number(t.amount) || 0);
+    if(!byPrimaryMonth[primary]) byPrimaryMonth[primary] = {};
+    byPrimaryMonth[primary][ym] = (byPrimaryMonth[primary][ym] || 0) + amt;
+  });
+
+  const stats = {};
+  Object.keys(byPrimaryMonth).forEach(primary => {
+    const monthData = byPrimaryMonth[primary];
+    const actual = monthData[curYM] || 0;
+    const trailingSum = trailingMonths.reduce((s,ym) => s + (monthData[ym] || 0), 0);
+    stats[primary] = { actual, average: trailingSum / 6 };
+  });
+  return stats;
+}
+
+function renderBudgetRows(stats, settings){
+  const container = document.getElementById('budget-rows-container');
+  const badge = document.getElementById('budget-badge');
+  if(!container) return;
+
+  // Show categories with real activity (this month or in the trailing
+  // average), biggest average first — an all-zero category adds no value.
+  const entries = Object.entries(stats)
+    .filter(([,s]) => s.actual > 0 || s.average > 0)
+    .sort((a,b) => b[1].average - a[1].average);
+
+  if(entries.length === 0){
+    container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין עדיין עסקאות אישיות מסווגות</div>';
+    if(badge) badge.textContent = 'חודשי · אין נתונים';
+    return;
+  }
+
+  if(badge) badge.textContent = 'חודשי · לפי קטגוריה';
+
+  container.innerHTML = entries.map(([primary, s], i) => {
+    const slug = PRIMARY_SLUGS[primary] || primary.replace(/[^a-zA-Z0-9]/g,'') || ('cat'+i);
+    const saved = parseFloat(settings['budget_target_' + slug]);
+    const target = !isNaN(saved) ? saved : Math.round(s.average);
+    const pct = target > 0 ? Math.min(Math.round((s.actual/target)*100), 100) : 0;
+    const barColor = pct >= 100 ? 'var(--r)' : pct >= 80 ? 'var(--y)' : 'var(--g)';
+    const isLast = i === entries.length - 1;
+    return `
+      <div class="budget-row" data-slug="${slug}" ${isLast ? 'style="border-bottom:none;"' : ''}>
+        <div class="budget-info">
+          <div class="budget-name">${primary}</div>
+          <div class="budget-amounts"><span id="bgt-${slug}-spent">${fmtCF(s.actual)}</span> מתוך <span id="bgt-${slug}-target-label">${fmtCF(target)}</span> · ממוצע נע ${fmtCF(s.average)}</div>
+        </div>
+        <input class="pl-input" type="number" id="bgt-${slug}-input" value="${target}" min="0" data-primary="${primary.replace(/"/g,'&quot;')}" oninput="recalcBudgetRow('${slug}')" onchange="saveBudgetTarget('${slug}')">
+        <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-${slug}-bar" style="width:${pct}%;background:${barColor};"></div></div>
+      </div>`;
+  }).join('');
+}
+
+function recalcBudgetRow(slug){
+  const input = document.getElementById('bgt-'+slug+'-input');
+  const spentEl = document.getElementById('bgt-'+slug+'-spent');
+  const targetLabel = document.getElementById('bgt-'+slug+'-target-label');
+  const bar = document.getElementById('bgt-'+slug+'-bar');
+  if(!input || !spentEl || !bar) return;
+  const target = getNum('bgt-'+slug+'-input');
+  const spent = parseFloat(spentEl.textContent.replace(/[^\d.-]/g,'')) || 0;
+  if(targetLabel) targetLabel.textContent = fmtCF(target);
+  const pct = target > 0 ? Math.min(Math.round((spent/target)*100), 100) : 0;
   bar.style.width = pct + '%';
   bar.style.background = pct >= 100 ? 'var(--r)' : pct >= 80 ? 'var(--y)' : 'var(--g)';
+}
+
+async function saveBudgetTarget(slug){
+  const value = getNum('bgt-'+slug+'-input');
+  await postToAppsScript({ action: 'writeSettings', settings: { ['budget_target_' + slug]: value } });
+}
+
+async function loadBudgetEngine(){
+  const badge = document.getElementById('budget-badge');
+  try {
+    const [settingsRows, txResp, mapResp] = await Promise.all([
+      fetchSheetRows('הגדרות'),
+      postToAppsScript({ action: 'getLiveTransactions' }),
+      postToAppsScript({ action: 'getMappings' })
+    ]);
+
+    const settings = {};
+    (settingsRows || []).forEach(r => {
+      if(!r.c) return;
+      const key = String(r.c[0]?.v || '').trim();
+      if(key) settings[key] = r.c[1]?.v;
+    });
+
+    if(!txResp || !txResp.transactions || !mapResp || !mapResp.rows){
+      if(badge) badge.textContent = 'חודשי · שגיאה';
+      console.error('Budget engine: missing data', txResp, mapResp);
+      return;
+    }
+
+    const stats = computeCategoryStats(txResp.transactions, mapResp.rows);
+    renderBudgetRows(stats, settings);
+  } catch(e){
+    console.error('loadBudgetEngine error:', e);
+    if(badge) badge.textContent = 'חודשי · שגיאה';
+  }
 }
 
 // ─── MAX BILLING ───
@@ -2090,6 +2174,7 @@ loadWorkData();
 fetchMaxBilling();
 loadLoans();
 loadManualAssets();
+loadBudgetEngine();
 </script>
 </body>
 </html>
