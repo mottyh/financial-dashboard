@@ -750,6 +750,17 @@ body{
       </table>
     </div>
 
+    <!-- לבנה 2ב: החזרי הלוואות -->
+    <div class="section-header">
+      <div class="section-title">החזרי הלוואות החודש</div>
+      <div class="update-badge" id="cf-loans-badge">מטבלת הלוואות</div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
+      <div id="cf-loans-rows">
+        <div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">טוען...</div>
+      </div>
+    </div>
+
     <!-- לבנה 3: ניצול תקציב -->
     <div class="section-header">
       <div class="section-title">ניצול תקציב</div>
@@ -1667,6 +1678,89 @@ function renderMaxCards(settings){
 // ─── LOANS ───
 const LOANS_SHEET_NAME = 'הלוואות';
 
+// Which account a repayment actually leaves from. `owner` says whose debt it is,
+// which is not the same question: the MAX loan is owned by Motty personally but
+// is collected as a line on the credit-card statement, so it is already inside
+// the MAX charge the cash flow counts. Adding it again to the personal bank
+// subtotal would double-count ~₪770 every month.
+//
+// Inferred from id/name because the הלוואות sheet has no channel column. That
+// is the weak point here: it holds for the four current rows and would silently
+// mis-split a future card-collected loan named differently. The durable fix is
+// an explicit `debit_channel` column appended to the sheet (appended, because
+// loadLoans reads cells by position).
+function loanDebitChannel(loan){
+  const s = `${loan.id || ''} ${loan.name || ''}`.toLowerCase();
+  return /max|מקס|כרטיס/.test(s) ? 'card' : 'bank';
+}
+
+function loanAccount(loan){
+  return String(loan.owner || '').includes('מצוינים') ? 'business' : 'personal';
+}
+
+// A loan past its end date stops costing anything, so it must not keep showing
+// up as a monthly outflow.
+function loanIsActive(loan, asOf){
+  if(!loan.end_date) return true;
+  const end = new Date(loan.end_date);
+  return Number.isNaN(end.getTime()) ? true : end >= asOf;
+}
+
+function renderCashflowLoans(loans, asOf){
+  const host = document.getElementById('cf-loans-rows');
+  if(!host) return;
+
+  const active = (loans || []).filter(l => loanIsActive(l, asOf));
+  const pmt = l => parseFloat(l.monthly_payment) || 0;
+
+  const bank = { business: [], personal: [] };
+  const card = [];
+  for(const l of active){
+    if(loanDebitChannel(l) === 'card') card.push(l);
+    else bank[loanAccount(l)].push(l);
+  }
+
+  const sum = arr => arr.reduce((s, l) => s + pmt(l), 0);
+  const bizTotal  = sum(bank.business);
+  const persTotal = sum(bank.personal);
+  const cardTotal = sum(card);
+
+  const row = (label, amount, sub, muted) => `
+    <div class="pl-row">
+      <div class="pl-name" ${muted ? 'style="color:var(--mu);"' : ''}>${label}
+        ${sub ? `<span style="display:block;font-size:10px;color:var(--mu);font-weight:400;">${sub}</span>` : ''}
+      </div>
+      <div class="pl-amount ${muted ? '' : 'exp'}" ${muted ? 'style="color:var(--mu);"' : ''}>${muted ? '' : '−'}${fmtMoney(amount)}</div>
+    </div>`;
+
+  let html = '';
+  if(bank.business.length){
+    html += row('מצוינים', bizTotal, bank.business.map(l => l.name).join(' · '));
+  }
+  if(bank.personal.length){
+    html += row('מוטי אישי', persTotal, bank.personal.map(l => l.name).join(' · '));
+  }
+  html += `
+    <div class="pl-row total" style="border-top:2px solid var(--bd2);">
+      <div>סה"כ מהעו"ש</div>
+      <div class="pl-amount exp" style="font-size:16px;">−${fmtMoney(bizTotal + persTotal)}</div>
+    </div>`;
+  if(card.length){
+    html += row(`${card.map(l => l.name).join(' · ')}`,
+                cardTotal,
+                `${fmtMoney(cardTotal)}/חודש — נגבה בכרטיס MAX, כבר כלול בחיוב האשראי ולכן לא נספר כאן`,
+                true);
+  }
+  html += `
+    <div style="padding:8px 14px 10px;font-size:10px;color:var(--mu);border-top:1px solid var(--bd);">
+      סכום חודשי מלא. יום הגבייה בחודש אינו בטבלת ההלוואות, ולכן אין כאן פיצול ל"שולם" מול "צפוי".
+    </div>`;
+
+  host.innerHTML = html;
+  const badge = document.getElementById('cf-loans-badge');
+  if(badge) badge.textContent = `${active.length} הלוואות פעילות`;
+}
+
 function monthsBetween(d1, d2){
   return (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
 }
@@ -1727,12 +1821,17 @@ async function loadLoans(){
 
   if(loans.length === 0){
     container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין הלוואות רשומות</div>';
+    const cfHost = document.getElementById('cf-loans-rows');
+    if(cfHost) cfHost.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין הלוואות רשומות</div>';
     window._loansTotal = 0;
     recalcNetWorth();
     return;
   }
 
   const now = new Date();
+  // Fed from the rows already fetched here — the cash-flow screen needs the same
+  // table and there is no reason to pull it twice.
+  renderCashflowLoans(loans, now);
   const groups = {};
   let grandTotal = 0, grandMonthly = 0;
 
