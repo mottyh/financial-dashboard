@@ -1684,14 +1684,20 @@ const LOANS_SHEET_NAME = 'הלוואות';
 // the MAX charge the cash flow counts. Adding it again to the personal bank
 // subtotal would double-count ~₪770 every month.
 //
-// Inferred from id/name because the הלוואות sheet has no channel column. That
-// is the weak point here: it holds for the four current rows and would silently
-// mis-split a future card-collected loan named differently. The durable fix is
-// an explicit `debit_channel` column appended to the sheet (appended, because
-// loadLoans reads cells by position).
+// Now read from the `ערוץ גבייה` column (K) rather than guessed from the name.
+// The name heuristic worked for the four rows that existed but would silently
+// mis-split a card-collected loan named differently — and silence is the part
+// that matters when the error is in money. The heuristic is kept only as a
+// fallback for a row left blank, and says so in the console.
 function loanDebitChannel(loan){
+  const declared = String(loan.debit_channel || '').trim();
+  if(declared === 'כרטיס') return 'card';
+  if(declared === 'בנק')   return 'bank';
+  if(declared === 'ניכוי מתשלום') return 'deduction';
   const s = `${loan.id || ''} ${loan.name || ''}`.toLowerCase();
-  return /max|מקס|כרטיס/.test(s) ? 'card' : 'bank';
+  const guess = /max|מקס|כרטיס/.test(s) ? 'card' : 'bank';
+  console.warn(`הלוואה "${loan.name || loan.id}" בלי ערוץ גבייה בגיליון — נוחש כ-${guess}`);
+  return guess;
 }
 
 function loanAccount(loan){
@@ -1715,8 +1721,14 @@ function renderCashflowLoans(loans, asOf){
 
   const bank = { business: [], personal: [] };
   const card = [];
+  const deduction = [];
   for(const l of active){
-    if(loanDebitChannel(l) === 'card') card.push(l);
+    const ch = loanDebitChannel(l);
+    if(ch === 'card') card.push(l);
+    // Withheld at source from a client payment, so it never appears as an
+    // outflow at all — it arrives as a smaller deposit. Counting it here as well
+    // would charge it twice.
+    else if(ch === 'deduction') deduction.push(l);
     else bank[loanAccount(l)].push(l);
   }
 
@@ -1724,6 +1736,7 @@ function renderCashflowLoans(loans, asOf){
   const bizTotal  = sum(bank.business);
   const persTotal = sum(bank.personal);
   const cardTotal = sum(card);
+  const dedTotal  = sum(deduction);
 
   const row = (label, amount, sub, muted) => `
     <div class="pl-row">
@@ -1751,9 +1764,15 @@ function renderCashflowLoans(loans, asOf){
                 `${fmtMoney(cardTotal)}/חודש — נגבה בכרטיס MAX, כבר כלול בחיוב האשראי ולכן לא נספר כאן`,
                 true);
   }
+  if(deduction.length){
+    html += row(`${deduction.map(l => l.name).join(' · ')}`,
+                dedTotal,
+                `${fmtMoney(dedTotal)}/חודש — מנוכה מהתשלום של הלקוח, מקטין את ההכנסה ולא נספר כהוצאה`,
+                true);
+  }
   html += `
     <div style="padding:8px 14px 10px;font-size:10px;color:var(--mu);border-top:1px solid var(--bd);">
-      סכום חודשי מלא. יום הגבייה בחודש אינו בטבלת ההלוואות, ולכן אין כאן פיצול ל"שולם" מול "צפוי".
+      נגבה ב-15 בחודש. ${new Date().getDate() > 15 ? 'כבר נגבה החודש.' : 'טרם נגבה החודש.'}
     </div>`;
 
   host.innerHTML = html;
@@ -1815,7 +1834,8 @@ async function loadLoans(){
       start_date: parseTxDate(r.c[6]?.v),
       end_date: parseTxDate(r.c[7]?.v),
       balance_as_of_date: parseTxDate(r.c[8]?.v),
-      balance_as_of_amount: r.c[9]?.v
+      balance_as_of_amount: r.c[9]?.v,
+      debit_channel: r.c[10]?.v
     };
   }).filter(l => l && l.id && l.id !== 'id');
 
