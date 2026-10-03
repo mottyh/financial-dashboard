@@ -1399,6 +1399,56 @@ function parseTxDate(v){
   return s.substring(0,10);
 }
 
+// The `__f` formatted twin comes first on purpose. Once Sheets has coerced a
+// timestamp to a real date, gviz reports `v` as a serial day number — 46310 for
+// 2026-10-15 — and `new Date("46310")` quietly reads that as the *year* 46310,
+// which is how this first rendered "ייגבה ב-1 בינואר". `f` carries the readable
+// "2026-10-15 00:00:00". A bare number is never a date here, so it is rejected
+// rather than guessed at.
+function parseSettingDate(settings, key){
+  for(const raw of [settings[key + '__f'], settings[key]]){
+    if(raw === undefined || raw === null || raw === '') continue;
+    const s = String(raw).trim();
+    if(s.startsWith('Date(')){
+      const p = s.slice(5,-1).split(',').map(Number);
+      return new Date(p[0], p[1], p[2], p[3]||0, p[4]||0, p[5]||0);
+    }
+    if(/^-?\d+(\.\d+)?$/.test(s)) continue;
+    // "2026-10-15 00:00:00" is local time; Safari will not parse it with the
+    // space, so normalise to the ISO separator before handing it to Date.
+    const d = new Date(s.replace(' ', 'T'));
+    if(!Number.isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+// Freshness has to be stated, not assumed. These badges used to read
+// "עודכן <today>" off the browser clock no matter how old the figure was, which
+// is how six-day-old Leumi balances sat on the balance sheet looking current.
+// No timestamp means we say so rather than guessing.
+const STALE_AFTER_HOURS = 12;
+
+function freshnessLabel(date, source){
+  if(!date) return source + ' · מועד עדכון לא ידוע';
+  const hours = (Date.now() - date.getTime()) / 36e5;
+  const when = date.toLocaleDateString('he-IL',{day:'numeric',month:'numeric'});
+  const time = date.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  if(hours < 0) return `${source} · עודכן ${when}`;
+  if(hours < STALE_AFTER_HOURS) return `${source} · עודכן ${time}`;
+  const days = Math.floor(hours / 24);
+  if(days < 1) return `⚠ ${source} · עודכן ${when} ${time}`;
+  return `⚠ לא עודכן ${days === 1 ? 'יום' : days + ' ימים'}`;
+}
+
+// Only a tooltip, deliberately: these amounts are already coloured by sign
+// (.pos/.neg, and the asset/liability row they get moved into), and an inline
+// override here would fight that. The badge carries the warning.
+function markStale(el, date){
+  if(!el) return;
+  const stale = !date || (Date.now() - date.getTime()) / 36e5 >= STALE_AFTER_HOURS;
+  el.title = stale ? 'הנתון אינו עדכני — הסקרייפר לא כתב מאז' : '';
+}
+
 async function fetchMaxBilling(){
   const { label } = getBillingCycle();
   const cycleEl = document.getElementById('cc-cycle-label');
@@ -1429,13 +1479,28 @@ async function fetchMaxBilling(){
     if(cell?.f !== undefined) settings[key + '__f'] = cell.f;
   }
 
-  const personal = parseFloat(settings['upcoming_personal']) || 0;
-  const business = parseFloat(settings['upcoming_business']) || 0;
+  // Was reading `upcoming_personal`/`upcoming_business`. Those are computed in
+  // max-scraper.mjs by summing transactions since the 15th of last month — but
+  // the scrape only fetches from the 1st of the current month, so the sum is
+  // over data that was never pulled. On 2026-10-03 it reported ₪1,607 for a
+  // charge that MAX itself put at ₪14,361: wrong by a factor of nine, on the
+  // home screen.
+  //
+  // `max_*_balance` comes straight from MAX with its own charge date, so it
+  // needs no reconstruction. Checked against the live transactions for the
+  // 11th-to-10th window: ₪14,130 vs MAX's ₪14,169, a 0.3% match.
+  const personal = parseFloat(settings['max_personal_balance']) || 0;
+  const business = parseFloat(settings['max_business_balance']) || 0;
 
   if(persEl) persEl.textContent = fmtMoney(Math.abs(personal));
   if(busEl)  busEl.textContent  = fmtMoney(Math.abs(business));
   if(totEl)  totEl.textContent  = fmtMoney(Math.abs(personal + business));
-  if(badgeEl) badgeEl.textContent = 'MAX · הגדרות';
+
+  const chargeDate = parseSettingDate(settings, 'max_balance_date');
+  if(cycleEl && chargeDate){
+    cycleEl.textContent = 'ייגבה ב-' + chargeDate.toLocaleDateString('he-IL',{day:'numeric',month:'long'});
+  }
+  if(badgeEl) badgeEl.textContent = freshnessLabel(parseSettingDate(settings, 'max_balance_written_at'), 'MAX');
 
   applyLeumiBalances(settings);
   renderMaxCards(settings);
@@ -1459,9 +1524,14 @@ function applyLeumiBalances(settings){
   const liabBizVal   = document.getElementById('liab-check-matzuyanim-val');
   const liabPersVal  = document.getElementById('liab-check-moti-val');
 
-  const today = new Date().toLocaleDateString('he-IL',{day:'numeric',month:'numeric'});
-  if(badgeBiz)  badgeBiz.textContent  = 'עודכן ' + today;
-  if(badgePers) badgePers.textContent = 'עודכן ' + today;
+  // Was `'עודכן ' + new Date()` — a claim about the data made from the viewer's
+  // clock, true only by coincidence. Now it reports when the scraper actually
+  // wrote, and flags the figure in red once it goes stale.
+  const writtenAt = parseSettingDate(settings, 'leumi_balance_date');
+  const label = freshnessLabel(writtenAt, 'לאומי');
+  if(badgeBiz)  badgeBiz.textContent  = label;
+  if(badgePers) badgePers.textContent = label;
+  [bizAmountEl, persAmountEl, liabBizVal, liabPersVal].forEach(el => markStale(el, writtenAt));
 
   // Business account (828)
   if(!isNaN(biz) && biz < 0){
