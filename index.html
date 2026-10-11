@@ -761,6 +761,18 @@ body{
       </div>
     </div>
 
+    <!-- לבנה 2ג: תחזית סוף חודש -->
+    <div class="section-header">
+      <div class="section-title">תחזית סוף חודש</div>
+      <div class="update-badge" id="fc-badge">טוען...</div>
+    </div>
+    <div id="fc-alert"></div>
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:12px;">
+      <div id="fc-rows">
+        <div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">טוען...</div>
+      </div>
+    </div>
+
     <!-- לבנה 3: ניצול תקציב -->
     <div class="section-header">
       <div class="section-title">ניצול תקציב</div>
@@ -1713,6 +1725,296 @@ function renderMaxCards(settings){
   recalcNetWorth();
 }
 
+// ─── CASH-FLOW FORECAST ───
+// Two layers, because "how much will be in the bank" and "how much did I spend"
+// are different questions and one number cannot answer both.
+//
+//   cash    — money that actually moves by month end, each line placed on its
+//             real date. The credit-limit alert rides on this one.
+//   accrued — the calendar month's card spending regardless of when it is
+//             charged, which is what a consumption decision needs.
+//
+// The distinction is not academic: the MAX cycle bills on the 15th, so a
+// purchase made on the 20th does not leave the account until the 15th of the
+// *following* month. Counting it as this month's outflow would overstate the
+// month and make the limit alert fire early — and an alert that cries wolf is
+// one he will learn to ignore.
+//
+// Every line carries a date, so "already happened" is derived by comparing to
+// today rather than assumed. Without that, starting from today's balance and
+// then subtracting the month's fixed costs double-counts whatever has already
+// been paid — October's rent, for instance, left on the 1st.
+const FC = {
+  // Floors, not balances: the personal account may run to −20,000 (its credit
+  // line); the company has no facility at all and must not go below zero.
+  limitPersonal: -20000,
+  limitBusiness: 0,
+  rent: 3200,
+  alimony: 1800,
+  fixedDay: 15
+};
+
+function fcLastDayOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
+
+// Momentum pays שוטף+10, Drive שוטף+45: work done in month M is paid
+// `terms` days after the end of M. Returns the date a given month's work lands.
+function fcPaymentDate(workMonthDate, termsDays){
+  const endOfMonth = new Date(workMonthDate.getFullYear(), workMonthDate.getMonth()+1, 0);
+  return new Date(endOfMonth.getTime() + termsDays*864e5);
+}
+
+// Client income, from work already done and from orders not yet executed.
+// Deliberately per client and per activity date rather than off the monthly
+// summary: that tab sums every client together, but Momentum pays שוטף+10 and
+// Drive שוטף+45, so one month's total can land as two deposits five weeks
+// apart. Treating it as a single payment puts money in the wrong month.
+function fcCollectIncome(workRows, orderRows, clients, now){
+  const terms = {};
+  (clients||[]).forEach(c => { if(c.name) terms[c.name] = parseFloat(c.payment_terms_days) || 0; });
+
+  const items = [];
+  const push = (dateCell, clientCell, amountCell, label, firm) => {
+    const d = parseTxDate(dateCell);
+    const amount = parseFloat(amountCell);
+    if(!d || !isFinite(amount) || amount <= 0) return;
+    const work = new Date(d);
+    if(isNaN(work)) return;
+    const client = String(clientCell || '').trim() || 'לקוח';
+    items.push({ date: fcPaymentDate(work, terms[client] ?? 0), amount, client,
+                 label: `${label} · ${client}`, firm, account: 'business' });
+  };
+
+  (workRows||[]).forEach(r => { if(r.c) push(r.c[1]?.v, r.c[2]?.v, r.c[13]?.v, 'עבודה שבוצעה', true); });
+  (orderRows||[]).forEach(r => { if(r.c) push(r.c[0]?.v, r.c[2]?.v, r.c[6]?.v, 'הזמנה עתידית', false); });
+
+  // A client settles a month's work in one transfer, so several work rows with
+  // the same client and payment date are one deposit, not several. Keeping them
+  // apart also misplaced the Momentum advance deduction, which came off
+  // whichever row happened to be first and turned a ₪1,299 line into ₪49.
+  const merged = new Map();
+  items.forEach(it => {
+    const k = it.client + '|' + it.date.toISOString().slice(0,10);
+    const prev = merged.get(k);
+    if(prev){
+      prev.amount += it.amount;
+      prev.parts += 1;
+      if(!it.firm) prev.firm = false;          // any unexecuted part makes the whole forecast
+    } else {
+      merged.set(k, { ...it, parts: 1 });
+    }
+  });
+  return [...merged.values()].map(p => ({
+    ...p,
+    label: (p.firm ? 'תשלום' : 'תשלום צפוי') + ` · ${p.client}` + (p.parts > 1 ? ` (${p.parts} פעילויות)` : '')
+  }));
+}
+
+// Builds every dated movement from today to month end, per account, and walks
+// the balance forward. Returns the running series so the trough can be found —
+// the limit is breached on the worst day, not on the last one, and with the
+// card charge and the loans both landing on the 15th the worst day is usually
+// mid-month.
+function fcBuildForecast({ settings, loans, income, now }){
+  const num = k => { const v = parseFloat(settings[k]); return isFinite(v) ? v : null; };
+  const rent    = num('cf_rent_amount')    ?? FC.rent;
+  const alimony = num('cf_alimony_amount') ?? FC.alimony;
+  const day     = num('cf_fixed_day')      ?? FC.fixedDay;
+  const limitP  = -(num('credit_limit_personal') ?? -FC.limitPersonal);
+  const limitB  = -(num('credit_limit_business') ?? -FC.limitBusiness);
+
+  const start = {
+    personal: parseFloat(settings['leumi_personal_balance']) || 0,
+    business: parseFloat(settings['leumi_business_balance']) || 0
+  };
+
+  const Y = now.getFullYear(), M = now.getMonth();
+  const monthEnd = new Date(Y, M, fcLastDayOfMonth(now));
+  const fixedDate = new Date(Y, M, Math.min(day, fcLastDayOfMonth(now)));
+  const items = [];
+  const add = (date, account, amount, label, note) => {
+    if(date > monthEnd) return;                 // belongs to a later month
+    items.push({ date, account, amount, label, note, done: date < now });
+  };
+
+  // Card charges. Taken from MAX's own balance for the upcoming charge, which
+  // already contains the standing orders and the MAX loan instalment — adding
+  // either separately would bill them twice.
+  const chargeDate = parseSettingDate(settings, 'max_balance_date') || fixedDate;
+  const maxP = Math.abs(parseFloat(settings['max_personal_balance']) || 0);
+  const maxB = Math.abs(parseFloat(settings['max_business_balance']) || 0);
+  if(maxP) add(chargeDate, 'personal', -maxP, 'חיוב MAX אישי', 'כולל הוראות קבע והלוואת MAX');
+  if(maxB) add(chargeDate, 'business', -maxB, 'חיוב MAX עסקי', null);
+
+  // Loans, only those actually debited from a bank account.
+  (loans||[]).forEach(l => {
+    if(!loanIsActive(l, now)) return;
+    if(loanDebitChannel(l) !== 'bank') return;  // card and at-source handled elsewhere
+    const pmt = parseFloat(l.monthly_payment) || 0;
+    if(!pmt) return;
+    add(fixedDate, loanAccount(l), -pmt, `הלוואה · ${l.name || l.id}`, null);
+  });
+
+  add(fixedDate, 'personal', -alimony, 'מזונות', null);
+
+  // Rent for month M+1 goes out on the last day of M — Motty initiates the
+  // transfer then, and it shows in the account the next morning.
+  add(new Date(Y, M, fcLastDayOfMonth(now)), 'personal', -rent, 'שכר דירה (לחודש הבא)', null);
+
+  // Income, net of anything withheld at source from the payment itself.
+  const deduction = (loans||[])
+    .filter(l => loanIsActive(l, now) && loanDebitChannel(l) === 'deduction')
+    .reduce((s,l) => s + (parseFloat(l.monthly_payment) || 0), 0);
+  // The advance is withheld once per payment, from the client that holds it.
+  let deductionApplied = false;
+  income.sort((a,b) => a.date - b.date).forEach(p => {
+    if(p.date > monthEnd || p.date < new Date(Y, M, 1)) return;
+    let amount = p.amount, note = null;
+    if(!deductionApplied && deduction > 0 && /מומנטום/.test(p.client)){
+      amount -= deduction;
+      note = `פחות ${fmtMoney(deduction)} ניכוי מקדמה`;
+      deductionApplied = true;
+    }
+    add(p.date, p.account, amount, p.label, note);
+  });
+
+  items.sort((a,b) => a.date - b.date);
+
+  // Walk forward from *today's* balance, so only still-future movements may
+  // change it. Anything already dated in the past has, by definition, already
+  // landed and is baked into that balance — adding it again double-counts.
+  // This is the trap the whole dated-line design exists to avoid, and it is
+  // easy to fall into: October's Momentum payment arrived on the 10th and is
+  // already inside the ₪4,727 showing in the business account.
+  //
+  // Past lines are still listed, greyed, because a forecast that silently
+  // drops what happened earlier in the month is hard to check against a
+  // statement.
+  const run = { personal: start.personal, business: start.business };
+  const low = { personal: start.personal, business: start.business };
+  const lowDate = { personal: null, business: null };
+  items.forEach(it => {
+    if(it.done){ it.after = run[it.account]; return; }
+    run[it.account] += it.amount;
+    if(run[it.account] < low[it.account]){ low[it.account] = run[it.account]; lowDate[it.account] = it.date; }
+    it.after = run[it.account];
+  });
+
+  return { items, start, end: { ...run }, low, lowDate,
+           limits: { personal: limitP, business: limitB }, monthEnd };
+}
+
+function fcRender(f, now){
+  const host  = document.getElementById('fc-rows');
+  const badge = document.getElementById('fc-badge');
+  const alert = document.getElementById('fc-alert');
+  if(!host) return;
+
+  const d = x => x.toLocaleDateString('he-IL',{day:'numeric',month:'numeric'});
+  const money = v => (v < 0 ? '−' : '') + fmtMoney(Math.abs(v));
+  const acc = { personal: 'אישי', business: 'מצוינים' };
+
+  let html = `
+    <div class="pl-row" style="background:var(--s3);">
+      <div class="pl-name" style="font-weight:800;">נקודת פתיחה · היום</div>
+      <div class="pl-amount" style="font-weight:800;">${money(f.start.personal + f.start.business)}</div>
+    </div>
+    <div class="pl-row" style="padding-top:0;">
+      <div class="pl-name" style="font-size:11px;color:var(--mu);">אישי ${money(f.start.personal)} · מצוינים ${money(f.start.business)}</div>
+      <div class="pl-amount"></div>
+    </div>`;
+
+  if(f.items.length === 0){
+    html += `<div style="padding:14px;text-align:center;color:var(--mu);font-size:12px;">אין תנועות ידועות עד סוף החודש</div>`;
+  }
+
+  f.items.forEach(it => {
+    const past = it.done;
+    html += `
+      <div class="pl-row" ${past ? 'style="opacity:.5;"' : ''}>
+        <div class="pl-name">
+          ${d(it.date)} · ${it.label} <span style="font-size:10px;color:var(--mu);">(${acc[it.account]})</span>
+          ${past ? '<span style="font-size:10px;color:var(--mu);"> · כבר בוצע, כלול ביתרה</span>' : ''}
+          ${it.note ? `<span style="display:block;font-size:10px;color:var(--mu);font-weight:400;">${it.note}</span>` : ''}
+        </div>
+        <div class="pl-amount ${it.amount < 0 ? 'exp' : ''}" ${it.amount > 0 ? 'style="color:var(--g);"' : ''}>${money(it.amount)}</div>
+      </div>`;
+  });
+
+  const endTotal = f.end.personal + f.end.business;
+  html += `
+    <div class="pl-row total" style="border-top:2px solid var(--bd2);">
+      <div>יתרת סגירה · ${d(f.monthEnd)}</div>
+      <div class="pl-amount" style="font-size:16px;color:${endTotal < 0 ? 'var(--r)' : 'var(--g)'};">${money(endTotal)}</div>
+    </div>
+    <div class="pl-row" style="padding-top:0;border-bottom:none;">
+      <div class="pl-name" style="font-size:11px;color:var(--mu);">אישי ${money(f.end.personal)} · מצוינים ${money(f.end.business)}</div>
+      <div class="pl-amount"></div>
+    </div>`;
+  host.innerHTML = html;
+
+  // The alert is measured against the worst point in the month, not the
+  // closing figure: the card charge and the loans both land on the 15th, so
+  // the account dips well below where it ends up.
+  const breaches = [];
+  ['personal','business'].forEach(a => {
+    if(f.low[a] < f.limits[a]){
+      breaches.push({ account: a, low: f.low[a], when: f.lowDate[a], over: f.limits[a] - f.low[a] });
+    }
+  });
+
+  if(alert){
+    if(breaches.length){
+      alert.innerHTML = breaches.map(b => `
+        <div class="card" style="margin-bottom:8px;padding:12px 14px;border:1px solid var(--r);background:rgba(239,68,68,.08);">
+          <div style="font-weight:800;color:var(--r);font-size:13px;">⚠ חריגה ממסגרת — חשבון ${acc[b.account]}</div>
+          <div style="font-size:12px;margin-top:4px;">
+            צפוי להגיע ל-<strong>${money(b.low)}</strong> ב-${d(b.when)}, מול מסגרת של ${money(f.limits[b.account])}.
+            <strong style="color:var(--r);"> חריגה של ${fmtMoney(b.over)}.</strong>
+          </div>
+        </div>`).join('');
+    } else {
+      const worst = Math.min(f.low.personal - f.limits.personal, f.low.business - f.limits.business);
+      alert.innerHTML = `
+        <div class="card" style="margin-bottom:8px;padding:10px 14px;border:1px solid var(--g);background:rgba(45,212,160,.06);">
+          <div style="font-size:12px;color:var(--g);font-weight:700;">✓ בתוך המסגרת · מרווח מינימלי ${fmtMoney(worst)}</div>
+        </div>`;
+    }
+  }
+  if(badge) badge.textContent = `עד ${d(f.monthEnd)} · ${f.items.filter(i=>!i.done).length} תנועות צפויות`;
+}
+
+async function loadForecast(){
+  try{
+    const [settingsRows, loanRows, clientRows, workRows, orderRows] = await Promise.all([
+      fetchSheetRows('הגדרות'), fetchSheetRows(LOANS_SHEET_NAME), fetchSheetRows('לקוחות'),
+      fetchSheetRows('פירוט עבודות'), fetchSheetRows('הזמנות עתידיות')
+    ]);
+    const settings = {};
+    (settingsRows||[]).forEach(r => {
+      if(!r.c) return;
+      const k = String(r.c[0]?.v || '').trim();
+      if(!k) return;
+      settings[k] = r.c[1]?.v;
+      if(r.c[1]?.f !== undefined) settings[k + '__f'] = r.c[1].f;
+    });
+    const loans = (loanRows||[]).map(r => r.c && ({
+      id:r.c[0]?.v, owner:r.c[1]?.v, name:r.c[2]?.v, monthly_payment:r.c[5]?.v,
+      end_date:parseTxDate(r.c[7]?.v), debit_channel:r.c[10]?.v
+    })).filter(l => l && l.id && l.id !== 'id');
+    const clients = (clientRows||[]).map(r => r.c && ({
+      name:r.c[1]?.v, payment_terms_days:r.c[5]?.v
+    })).filter(c => c && c.name && c.name !== 'name');
+
+    const now = new Date();
+    const income = fcCollectIncome(workRows, orderRows, clients, now);
+    fcRender(fcBuildForecast({ settings, loans, income, now }), now);
+  }catch(e){
+    const host = document.getElementById('fc-rows');
+    if(host) host.innerHTML = `<div style="padding:16px;text-align:center;color:var(--r);font-size:12px;">שגיאה בטעינת התחזית: ${e.message}</div>`;
+    console.error('forecast', e);
+  }
+}
+
 // ─── LOANS ───
 const LOANS_SHEET_NAME = 'הלוואות';
 
@@ -2402,6 +2704,7 @@ fetchMaxBilling();
 loadLoans();
 loadManualAssets();
 loadBudgetEngine();
+loadForecast();
 </script>
 </body>
 </html>
