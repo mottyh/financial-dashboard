@@ -1254,8 +1254,18 @@ const PRIMARY_SLUGS = {
   'מחיה': 'machaya', 'רכב': 'car', 'דיור': 'housing', 'תקשורת': 'comms',
   'ביטוח ופנסיה': 'insurance', 'בילויים': 'fun', 'ילדים': 'kids',
   'השקעות': 'invest', 'רכש': 'procurement', 'שונות': 'misc',
-  'לא מסווג': 'unclassified'
+  'לא מסווג': 'unclassified', 'מע"מ ורשויות': 'authorities'
 };
+
+// Metsuyanim's VAT is charged to the *personal* card because the business
+// card's limit is too low — a constraint Motty is working on, not a mistake.
+// ₪35,351 of it across Jan–Sep 2026, which made "לא מסווג" the largest line on
+// this screen and put personal spending at ₪11,041/month instead of ₪7,044.
+// It is company money passing through, so it does not belong in a household
+// budget — but it genuinely leaves the account, so hiding it would be worse.
+// It is listed on its own, below the subtotal, with no target: VAT is set by
+// revenue, not by a spending decision, so a budget field would be meaningless.
+const PASSTHROUGH_PRIMARY = 'מע"מ ורשויות';
 
 function computeCategoryStats(transactions, mappings){
   const mapLookup = {};
@@ -1301,11 +1311,16 @@ function renderBudgetRows(stats, settings){
 
   // Show categories with real activity (this month or in the trailing
   // average), biggest average first — an all-zero category adds no value.
-  const entries = Object.entries(stats)
+  const active = Object.entries(stats)
     .filter(([,s]) => s.actual > 0 || s.average > 0)
     .sort((a,b) => b[1].average - a[1].average);
 
-  if(entries.length === 0){
+  // Household spending and company pass-through are two different questions,
+  // and averaging them together answers neither.
+  const entries    = active.filter(([p]) => p !== PASSTHROUGH_PRIMARY);
+  const passEntries = active.filter(([p]) => p === PASSTHROUGH_PRIMARY);
+
+  if(entries.length === 0 && passEntries.length === 0){
     container.innerHTML = '<div style="padding:16px;text-align:center;color:var(--mu);font-size:12px;">אין עדיין עסקאות אישיות מסווגות</div>';
     if(badge) badge.textContent = 'חודשי · אין נתונים';
     return;
@@ -1330,6 +1345,29 @@ function renderBudgetRows(stats, settings){
         <div class="budget-bar-wrap"><div class="budget-bar" id="bgt-${slug}-bar" style="width:${pct}%;background:${barColor};"></div></div>
       </div>`;
   }).join('');
+
+  // The number the whole screen exists to answer: what the household actually
+  // costs per month, with the company pass-through kept out of it.
+  const sum = (arr, k) => arr.reduce((t,[,s]) => t + s[k], 0);
+  container.innerHTML += `
+    <div class="budget-row" style="background:var(--s3);border-bottom:none;">
+      <div class="budget-info">
+        <div class="budget-name" style="font-weight:800;">סה"כ מחיה</div>
+        <div class="budget-amounts">${fmtCF(sum(entries,'actual'))} החודש · ממוצע נע ${fmtCF(sum(entries,'average'))}</div>
+      </div>
+    </div>`;
+
+  if(passEntries.length){
+    const pa = sum(passEntries,'actual'), pv = sum(passEntries,'average');
+    container.innerHTML += `
+      <div class="budget-row" style="border-bottom:none;border-top:1px solid var(--bd);opacity:.75;">
+        <div class="budget-info">
+          <div class="budget-name">${PASSTHROUGH_PRIMARY}</div>
+          <div class="budget-amounts">${fmtCF(pa)} החודש · ממוצע נע ${fmtCF(pv)}</div>
+          <div class="budget-amounts" style="color:var(--mu);">מע"מ של מצוינים שמחויב בכרטיס האישי — יוצא מהחשבון, אך אינו הוצאת מחיה ואין לו יעד</div>
+        </div>
+      </div>`;
+  }
 }
 
 function recalcBudgetRow(slug){
