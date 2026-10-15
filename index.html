@@ -1840,12 +1840,26 @@ function fcBuildForecast({ settings, loans, income, now }){
   // the bank shows it `pending` with a 15.10 value date while the balance is
   // still untouched. Treating only strictly-earlier days as settled handles
   // both the same-day case and that lag.
+  // Settlement is per instrument, not global, because the two accounts carry
+  // different kinds of card:
+  //   business — an in-bank card (לאומי מאסטרקרד). The charge is in the balance
+  //              on the charge date itself.
+  //   personal — an out-of-bank card (MAX). The charge carries the 15th as its
+  //              value date but only reaches the balance on the 16th.
+  // Verified against the bank: the business balance of ₪885.56 already contains
+  // both its 15.10 lines, while the personal ₪4,281.27 does not yet contain the
+  // ₪17,595 MAX charge. Treating them alike double-counted ₪3,841 in the
+  // business account and produced a breach warning that was not real.
+  //
+  // Bank-side movements (loan repayments, alimony, rent) settle on their own
+  // date. The API's `pending` flag is not usable for this: the business balance
+  // includes lines it reports as pending.
   const today = new Date(Y, M, now.getDate());
   const items = [];
-  const add = (date, account, amount, label, note) => {
+  const add = (date, account, amount, label, note, settleLagDays = 0) => {
     if(date > monthEnd) return;                 // belongs to a later month
-    const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    items.push({ date, account, amount, label, note, done: day < today });
+    const settles = new Date(date.getFullYear(), date.getMonth(), date.getDate() + settleLagDays);
+    items.push({ date, account, amount, label, note, settles, done: settles <= today });
   };
 
   // Card charges. Taken from MAX's own balance for the upcoming charge, which
@@ -1854,8 +1868,9 @@ function fcBuildForecast({ settings, loans, income, now }){
   const chargeDate = parseSettingDate(settings, 'max_balance_date') || fixedDate;
   const maxP = Math.abs(parseFloat(settings['max_personal_balance']) || 0);
   const maxB = Math.abs(parseFloat(settings['max_business_balance']) || 0);
-  if(maxP) add(chargeDate, 'personal', -maxP, 'חיוב MAX אישי', 'כולל הוראות קבע והלוואת MAX');
-  if(maxB) add(chargeDate, 'business', -maxB, 'חיוב MAX עסקי', null);
+  if(maxP) add(chargeDate, 'personal', -maxP, 'חיוב כרטיס אישי',
+               'חוץ-בנקאי · כולל הוראות קבע והלוואת MAX · משתקף למחרת', 1);
+  if(maxB) add(chargeDate, 'business', -maxB, 'חיוב כרטיס עסקי', 'פנים-בנקאי · משתקף באותו יום', 0);
 
   // Loans, only those actually debited from a bank account.
   (loans||[]).forEach(l => {
