@@ -1830,10 +1830,22 @@ function fcBuildForecast({ settings, loans, income, now }){
   const Y = now.getFullYear(), M = now.getMonth();
   const monthEnd = new Date(Y, M, fcLastDayOfMonth(now));
   const fixedDate = new Date(Y, M, Math.min(day, fcLastDayOfMonth(now)));
+  // Settled means "already inside the balance we started from", and that is a
+  // question about days, not hours. Comparing a midnight date against the
+  // current time marked everything dated *today* as past — on 15.10 that
+  // silently dropped the ₪17,595 card charge from the projection and the
+  // breach alert disappeared on the very day it mattered.
+  //
+  // A charge dated the 15th also does not reach the balance until the 16th:
+  // the bank shows it `pending` with a 15.10 value date while the balance is
+  // still untouched. Treating only strictly-earlier days as settled handles
+  // both the same-day case and that lag.
+  const today = new Date(Y, M, now.getDate());
   const items = [];
   const add = (date, account, amount, label, note) => {
     if(date > monthEnd) return;                 // belongs to a later month
-    items.push({ date, account, amount, label, note, done: date < now });
+    const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    items.push({ date, account, amount, label, note, done: day < today });
   };
 
   // Card charges. Taken from MAX's own balance for the upcoming charge, which
@@ -2034,6 +2046,10 @@ function loanDebitChannel(loan){
   if(declared === 'כרטיס') return 'card';
   if(declared === 'בנק')   return 'bank';
   if(declared === 'ניכוי מתשלום') return 'deduction';
+  // A real debt with no repayment schedule — repaid when funds allow. It must
+  // count against net worth but must never appear as a monthly outflow, and it
+  // has no end date to age out of.
+  if(declared === 'ללא החזר קבוע') return 'none';
   const s = `${loan.id || ''} ${loan.name || ''}`.toLowerCase();
   const guess = /max|מקס|כרטיס/.test(s) ? 'card' : 'bank';
   console.warn(`הלוואה "${loan.name || loan.id}" בלי ערוץ גבייה בגיליון — נוחש כ-${guess}`);
@@ -2062,6 +2078,7 @@ function renderCashflowLoans(loans, asOf){
   const bank = { business: [], personal: [] };
   const card = [];
   const deduction = [];
+  const openEnded = [];
   for(const l of active){
     const ch = loanDebitChannel(l);
     if(ch === 'card') card.push(l);
@@ -2069,6 +2086,7 @@ function renderCashflowLoans(loans, asOf){
     // outflow at all — it arrives as a smaller deposit. Counting it here as well
     // would charge it twice.
     else if(ch === 'deduction') deduction.push(l);
+    else if(ch === 'none') openEnded.push(l);
     else bank[loanAccount(l)].push(l);
   }
 
@@ -2110,6 +2128,12 @@ function renderCashflowLoans(loans, asOf){
                 `${fmtMoney(dedTotal)}/חודש — מנוכה מהתשלום של הלקוח, מקטין את ההכנסה ולא נספר כהוצאה`,
                 true);
   }
+  openEnded.forEach(l => {
+    const bal = parseFloat(l.balance_as_of_amount) || 0;
+    html += row(l.name || l.id, bal,
+                `יתרה ${fmtMoney(bal)} — ללא החזר קבוע, לכן אינה בתזרים החודשי. נספרת בהתחייבויות`,
+                true);
+  });
   html += `
     <div style="padding:8px 14px 10px;font-size:10px;color:var(--mu);border-top:1px solid var(--bd);">
       נגבה ב-15 בחודש. ${new Date().getDate() > 15 ? 'כבר נגבה החודש.' : 'טרם נגבה החודש.'}
@@ -2148,9 +2172,14 @@ function loanRemainingBalance(loan, asOf){
     remaining = anchorAmount * Math.pow(1 + monthlyRate, elapsedFromAnchor) - pmt * ((Math.pow(1 + monthlyRate, elapsedFromAnchor) - 1) / monthlyRate);
   }
 
+  // An open-ended debt has no start or end date, so the elapsed/total ratio is
+  // NaN and the progress bar would render as width:NaN%. There is no meaningful
+  // progress to show for a loan repaid whenever funds allow, so it reports 0.
   const totalMonths = Math.max(monthsBetween(start, end), 1);
   const elapsedFromStart = Math.min(Math.max(monthsBetween(start, asOf), 0), totalMonths);
-  return { remaining: Math.max(remaining, 0), pctPaid: totalMonths ? Math.min(elapsedFromStart / totalMonths, 1) : 0 };
+  const pctPaid = Number.isFinite(elapsedFromStart / totalMonths)
+    ? Math.min(elapsedFromStart / totalMonths, 1) : 0;
+  return { remaining: Math.max(remaining, 0), pctPaid };
 }
 
 async function loadLoans(){
